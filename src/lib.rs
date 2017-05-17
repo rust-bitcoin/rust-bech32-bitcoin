@@ -36,7 +36,7 @@
 //! # Examples
 //! 
 //! ```rust
-//! use bech32::wit_prog::WitnessProgram;
+//! use bitcoin_bech32::wit_prog::WitnessProgram;
 //! 
 //! let witness_program = WitnessProgram {
 //!     version: 0,
@@ -52,25 +52,8 @@
 //!     "tb1qqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesrxh6hy".to_string());
 //! ```
 
-pub mod bech32;
+extern crate bech32;
 pub mod wit_prog;
-
-/// Error types for Bech32 encoding / decoding
-#[derive(PartialEq, Debug)]
-pub enum CodingError {
-    /// String does not contain the separator character
-    MissingSeparator,
-    /// The checksum does not match the rest of the data
-    InvalidChecksum,
-    /// The data or human-readable part is too long or too short
-    InvalidLength,
-    /// Some part of the string contains an invalid character
-    InvalidChar,
-    /// Some part of the data has an invalid value
-    InvalidData,
-    /// The whole string must be of one case
-    MixedCase,
-}
 
 /// Error types for validating scriptpubkeys
 #[derive(PartialEq, Debug)]
@@ -112,7 +95,7 @@ pub enum BitConversionError {
 #[derive(PartialEq, Debug)]
 pub enum AddressError {
     /// Some Bech32 conversion error
-    Bech32(CodingError),
+    Bech32(bech32::Error),
     /// Some witness program error
     WitnessProgram(WitnessProgramError),
     /// Some 5-bit <-> 8-bit conversion error
@@ -126,27 +109,6 @@ pub enum AddressError {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn valid_checksum() {
-        let strings: Vec<&str> = vec!(
-            "A12UEL5L",
-            "an83characterlonghumanreadablepartthatcontainsthenumber1andtheexcludedcharactersbio1tt5tgs",
-            "abcdef1qpzry9x8gf2tvdw0s3jn54khce6mua7lmqqqxw",
-            "11qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqc8247j",
-            "split1checkupstagehandshakeupstreamerranterredcaperred2y9e3w",
-        );
-        for s in strings {
-            let decode_result = bech32::Bech32::from_string(s.to_string());
-            if !decode_result.is_ok() {
-                panic!("Did not decode: {:?} Reason: {:?}", s, decode_result.unwrap_err());
-            }
-            assert!(decode_result.is_ok());
-            let encode_result = decode_result.unwrap().to_string();
-            assert!(encode_result.is_ok());
-            assert_eq!(s.to_lowercase(), encode_result.unwrap().to_lowercase());
-        }
-    }
 
     #[test]
     fn valid_address() {
@@ -236,17 +198,17 @@ mod tests {
             ("tc1qw508d6qejxtdg4y5r3zarvary0c5xw7kg3g4ty",
                 AddressError::InvalidHumanReadablePart),
             ("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5",
-                AddressError::Bech32(CodingError::InvalidChecksum)),
+                AddressError::Bech32(bech32::Error::InvalidChecksum)),
             ("BC13W508D6QEJXTDG4Y5R3ZARVARY0C5XW7KN40WF2",
                 AddressError::WitnessProgram(WitnessProgramError::InvalidScriptVersion)),
             ("bc1rw5uspcuh",
                 AddressError::WitnessProgram(WitnessProgramError::InvalidLength)),
             ("bc10w508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7kw5rljs90",
-                AddressError::Bech32(CodingError::InvalidLength)),
+                AddressError::Bech32(bech32::Error::InvalidLength)),
             ("BC1QR508D6QEJXTDG4Y5R3ZARVARYV98GJ9P",
                 AddressError::WitnessProgram(WitnessProgramError::InvalidVersionLength)),
             ("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sL5k7",
-                AddressError::Bech32(CodingError::MixedCase)),
+                AddressError::Bech32(bech32::Error::MixedCase)),
             ("tb1pw508d6qejxtdg4y5r3zarqfsj6c3",
                 AddressError::Conversion(BitConversionError::InvalidPadding)),
             ("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3pjxtptv",

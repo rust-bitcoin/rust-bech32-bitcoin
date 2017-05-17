@@ -24,7 +24,7 @@
 //! # Examples
 //! 
 //! ```rust
-//! use bech32::wit_prog::WitnessProgram;
+//! use bitcoin_bech32::wit_prog::WitnessProgram;
 //! 
 //! let witness_program = WitnessProgram {
 //!     version: 0,
@@ -40,8 +40,9 @@
 //!     "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4".to_string());
 //! ```
 
+extern crate bech32;
+
 use bech32::Bech32;
-use super::CodingError;
 use super::AddressError;
 use super::ScriptPubKeyError;
 use super::BitConversionError;
@@ -104,7 +105,7 @@ impl WitnessProgram {
             return Err(AddressError::HumanReadableMismatch)
         }
         if b32.data.len() == 0 || b32.data.len() > 65 {
-            return Err(AddressError::Bech32(CodingError::InvalidLength))
+            return Err(AddressError::Bech32(bech32::Error::InvalidLength))
         }
         // Get the script version and 5-bit program
         let (v, p5) = b32.data.split_at(1);
