@@ -22,16 +22,11 @@
 
 //! Encoding and decoding Bech32 Bitcoin Segwit Addresses
 //! 
-//! Encoding and decoding for Bech32 strings and Bitcoin Segregated Witness 
-//! addresses. Bech32 is a 5-bit (base-32) encoding scheme that produces
-//! strings that comprise a human-readable part, a separator, a data part,
-//! and a checksum. The encoding implements a BCH code that guarantees
-//! error detection of up to four characters with less than 1 in 1 billion
-//! chance of failing to detect more errors.
-//! 
-//! The library contains `bech32` utilities for generic encoding of Bech32
-//! strings and `wit_prog` for converting witness programs to Bitcoin
-//! addresses and back.
+//! Encoding and decoding for Bitcoin Segregated Witness addresses. Bech32 is an
+//! encoding scheme described in [BIP-0173](https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki),
+//! and segregated witness addresses encoded by Bech32 simply combine a coin-specific
+//! human-readable part with the data of the witness program as the Bech32 data
+//! payload.
 //! 
 //! # Examples
 //! 

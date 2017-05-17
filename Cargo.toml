@@ -1,10 +1,13 @@
 [package]
-name = "bech32"
+name = "bitcoin-bech32"
 version = "0.1.0"
 authors = ["Clark Moody"]
+repository = "https://github.com/clarkmoody/rust-bech32-bitcoin"
 description = "Encodes and decodes Bitcoin Segregated Witness addresses in Bech32"
-keywords = ["bitcoin", "base32", "encoding"]
+readme = "README.md"
+keywords = ["bitcoin", "base32", "bech32", "encoding"]
 categories = ["encoding"]
 license = "MIT"
 
 [dependencies]
+bech32 = "0.2.1"
