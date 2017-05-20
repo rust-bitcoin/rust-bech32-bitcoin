@@ -19,16 +19,47 @@
 // THE SOFTWARE.
 
 //! Human-readable constants for various cryptocurrencies
+//! 
+//! The authoratative list of Human-readable parts for Bech32 addresses is
+//! maintained in [SLIP-0173](https://github.com/satoshilabs/slips/blob/master/slip-0173.md).
 
 /// The cryptocurrency to act on
 pub enum Network {
     /// Bitcoin mainnet
     Bitcoin,
+    /// Bitcoin testnet
+    Testnet,
+    /// Litecoin mainnet
+    Litecoin,
+    /// Litecoin testnet
+    LitecoinTestnet,
+    /// Vertcoin mainnet
+    Vertcoin,
+    /// Vertcoin testnet
+    VertcoinTestnet,
 }
 
 /// Returns the Human-readable part for the given network
 pub fn hrp(network: Network) -> String {
     match network {
         Network::Bitcoin => "bc".to_string(),
+        Network::Testnet => "tb".to_string(),
+        Network::Litecoin => "ltc".to_string(),
+        Network::LitecoinTestnet => "tltc".to_string(),
+        Network::Vertcoin => "vtc".to_string(),
+        Network::VertcoinTestnet => "tvtc".to_string(),
+    }
+}
+
+/// Classify a Human-readable part as its cryptocurrency
+pub fn classify(hrp: &str) -> Option<Network> {
+    match hrp {
+        "bc" => Some(Network::Bitcoin),
+        "tb" => Some(Network::Testnet),
+        "ltc" => Some(Network::Litecoin),
+        "tltc" => Some(Network::LitecoinTestnet),
+        "vtc" => Some(Network::Vertcoin),
+        "tvtc" => Some(Network::VertcoinTestnet),
+        _ => None
     }
 }
