@@ -24,6 +24,7 @@
 //! maintained in [SLIP-0173](https://github.com/satoshilabs/slips/blob/master/slip-0173.md).
 
 /// The cryptocurrency to act on
+#[derive(PartialEq, Debug, Clone)]
 pub enum Network {
     /// Bitcoin mainnet
     Bitcoin,
@@ -40,8 +41,8 @@ pub enum Network {
 }
 
 /// Returns the Human-readable part for the given network
-pub fn hrp(network: Network) -> String {
-    match network {
+pub fn hrp(network: &Network) -> String {
+    match *network {
         Network::Bitcoin => "bc".to_string(),
         Network::Testnet => "tb".to_string(),
         Network::Litecoin => "ltc".to_string(),

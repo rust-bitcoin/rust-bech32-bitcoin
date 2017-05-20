@@ -32,6 +32,7 @@
 //! 
 //! ```rust
 //! use bitcoin_bech32::WitnessProgram;
+//! use bitcoin_bech32::constants::Network;
 //! 
 //! let witness_program = WitnessProgram {
 //!     version: 0,
@@ -39,14 +40,15 @@
 //!                 0x00, 0x00, 0x00, 0xc4, 0xa5, 0xca, 0xd4, 0x62, 
 //!                 0x21, 0xb2, 0xa1, 0x87, 0x90, 0x5e, 0x52, 0x66, 
 //!                 0x36, 0x2b, 0x99, 0xd5, 0xe9, 0x1c, 0x6c, 0xe2, 
-//!                 0x4d, 0x16, 0x5d, 0xab, 0x93, 0xe8, 0x64, 0x33]
+//!                 0x4d, 0x16, 0x5d, 0xab, 0x93, 0xe8, 0x64, 0x33],
+//!     network: Network::Testnet
 //! };
 //! 
-//! let address = witness_program.to_address("tb".to_string()).unwrap();
+//! let address = witness_program.to_address().unwrap();
 //! assert_eq!(address, 
 //!     "tb1qqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesrxh6hy".to_string());
 //!
-//! let decoded = WitnessProgram::from_address("tb".to_string(), address).unwrap();
+//! let decoded = WitnessProgram::from_address(address).unwrap();
 //! assert_eq!(decoded, witness_program);
 //! ```
 
@@ -70,7 +72,9 @@ pub struct WitnessProgram {
     /// Witness program version
     pub version: u8,
     /// Witness program content
-    pub program: Vec<u8>
+    pub program: Vec<u8>,
+    /// Cryptocurrency network
+    pub network: Network,
 }
 
 type EncodeResult = Result<String, Error>;
@@ -80,7 +84,7 @@ type ValidationResult = Result<(), WitnessProgramError>;
 
 impl WitnessProgram {
     /// Converts a Witness Program to a SegWit Address
-    pub fn to_address(&self, hrp: String) -> EncodeResult {
+    pub fn to_address(&self) -> EncodeResult {
         // Verify that the program is valid
         let val_result = self.validate();
         if val_result.is_err() {
@@ -92,34 +96,31 @@ impl WitnessProgram {
             Ok(p) => p,
             Err(e) => return Err(Error::Conversion(e))
         };
-        // let p5 = convert_bits(self.program.to_vec(), 8, 5, true)?;
+        let hrp = constants::hrp(&self.network);
         data.extend_from_slice(&p5);
-        let b32 = Bech32 {hrp: hrp.clone().to_lowercase(), data: data};
+        let b32 = Bech32 {hrp: hrp.clone(), data: data};
         let address = match b32.to_string() {
             Ok(s) => s,
             Err(e) => return Err(Error::Bech32(e))
         };
         // Ensure that the address decodes into a program properly
-        WitnessProgram::from_address(hrp.to_lowercase(), address.clone())?;
+        WitnessProgram::from_address(address.clone())?;
         Ok(address)
     }
 
     /// Decodes a segwit address into a Witness Program
     ///
-    /// Verifies that the `address` contains the expected human-readable part 
+    /// Verifies that the `address` contains a known human-readable part 
     /// `hrp` and decodes as proper Bech32-encoded string. Allowed values of
-    /// the human-readable part are 'bc' and 'tb'.
-    pub fn from_address(hrp: String, address: String) -> DecodeResult {
-        let hrp = hrp.to_lowercase();
-        if hrp != "bc".to_string() && hrp != "tb".to_string() {
-            return Err(Error::InvalidHumanReadablePart)
-        }
+    /// the human-readable part correspond to the defined types in `constants`
+    pub fn from_address(address: String) -> DecodeResult {
         let b32 = match Bech32::from_string(address) {
             Ok(b) => b,
             Err(e) => return Err(Error::Bech32(e)),
         };
-        if b32.hrp != hrp {
-            return Err(Error::HumanReadableMismatch)
+        let network_classified = constants::classify(&b32.hrp);
+        if network_classified.is_none() {
+            return Err(Error::InvalidHumanReadablePart)
         }
         if b32.data.len() == 0 || b32.data.len() > 65 {
             return Err(Error::Bech32(bech32::Error::InvalidLength))
@@ -132,7 +133,8 @@ impl WitnessProgram {
             program: match convert_bits(p5.to_vec(), 5, 8, false) {
                 Ok(p) => p,
                 Err(e) => return Err(Error::Conversion(e))
-            }
+            },
+            network: network_classified.unwrap()
         };
         match wp.validate() {
             Ok(_) => Ok(wp),
@@ -157,7 +159,7 @@ impl WitnessProgram {
     }
 
     /// Extracts a WitnessProgram out of a provided script public key
-    pub fn from_scriptpubkey(pubkey: &[u8]) -> PubKeyResult {
+    pub fn from_scriptpubkey(pubkey: &[u8], network: Network) -> PubKeyResult {
         // We need a version byte and a program length byte, with a program at 
         // least 2 bytes long.
         if pubkey.len() < 4 {
@@ -176,7 +178,8 @@ impl WitnessProgram {
         let program = &pubkey[2..];
         Ok(WitnessProgram {
             version: v,
-            program: program.to_vec()
+            program: program.to_vec(),
+            network: network,
         })
     }
 
@@ -245,8 +248,6 @@ pub enum Error {
     WitnessProgram(WitnessProgramError),
     /// Some 5-bit <-> 8-bit conversion error
     Conversion(BitConversionError),
-    /// The provided human-readable portion does not match
-    HumanReadableMismatch,
     /// The human-readable part is invalid (must be "bc" or "tb")
     InvalidHumanReadablePart,
 }
@@ -257,7 +258,6 @@ impl fmt::Display for Error {
             Error::Bech32(ref e) => write!(f, "{}", e),
             Error::WitnessProgram(ref e) => write!(f, "{}", e),
             Error::Conversion(ref e) => write!(f, "{}", e),
-            Error::HumanReadableMismatch => write!(f, "human-readable part does not match"),
             Error::InvalidHumanReadablePart => write!(f, "invalid human-readable part"),
         }
     }
@@ -269,7 +269,6 @@ impl error::Error for Error {
             Error::Bech32(_) => "Bech32 error",
             Error::WitnessProgram(_) => "witness program error",
             Error::Conversion(_) => "bit conversion error",
-            Error::HumanReadableMismatch => "human-readable part mismatch",
             Error::InvalidHumanReadablePart => "invalid human-readable part",
         }
     }
@@ -415,28 +414,18 @@ mod tests {
         ];
         for p in pairs {
             let (address, scriptpubkey) = p;
-            let mut hrp = "bc".to_string();
-            let mut dec_result = WitnessProgram::from_address(hrp.clone(),
-                address.to_string());
-            if !dec_result.is_ok() {
-                hrp = "tb".to_string();
-                dec_result = WitnessProgram::from_address(hrp.clone(),
-                    address.to_string());
-                if !dec_result.is_ok() {
-                    println!("Should be valid: {:?}", address);
-                }
-            }
+            let dec_result = WitnessProgram::from_address(address.to_string());
             assert!(dec_result.is_ok());
 
             let prog = dec_result.unwrap();
             let pubkey = prog.clone().to_scriptpubkey();
             assert_eq!(pubkey, scriptpubkey);
 
-            let spk_result = WitnessProgram::from_scriptpubkey(&scriptpubkey);
+            let spk_result = WitnessProgram::from_scriptpubkey(&scriptpubkey, prog.network.clone());
             assert!(spk_result.is_ok());
             assert_eq!(prog, spk_result.unwrap());
 
-            let enc_result = prog.to_address(hrp);
+            let enc_result = prog.to_address();
             assert!(enc_result.is_ok());
 
             let enc_address = enc_result.unwrap();
@@ -468,9 +457,7 @@ mod tests {
         );
         for p in pairs {
             let (address, desired_error) = p;
-            let hrp = address[0..2].to_string();
-            let dec_result = WitnessProgram::from_address(
-                hrp, address.to_string());
+            let dec_result = WitnessProgram::from_address(address.to_string());
             println!("{:?}", address.to_string());
             if dec_result.is_ok() {
                 println!("{:?}", dec_result.unwrap());
