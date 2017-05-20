@@ -233,6 +233,54 @@ fn convert_bits(data: Vec<u8>, from: u32, to: u32, pad: bool) -> ConvertResult {
     Ok(ret)
 }
 
+/// Error types while encoding and decoding SegWit addresses
+#[derive(PartialEq, Debug)]
+pub enum Error {
+    /// Some Bech32 conversion error
+    Bech32(bech32::Error),
+    /// Some witness program error
+    WitnessProgram(WitnessProgramError),
+    /// Some 5-bit <-> 8-bit conversion error
+    Conversion(BitConversionError),
+    /// The provided human-readable portion does not match
+    HumanReadableMismatch,
+    /// The human-readable part is invalid (must be "bc" or "tb")
+    InvalidHumanReadablePart,
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Error::Bech32(ref e) => write!(f, "{}", e),
+            Error::WitnessProgram(ref e) => write!(f, "{}", e),
+            Error::Conversion(ref e) => write!(f, "{}", e),
+            Error::HumanReadableMismatch => write!(f, "human-readable part does not match"),
+            Error::InvalidHumanReadablePart => write!(f, "invalid human-readable part"),
+        }
+    }
+}
+
+impl error::Error for Error {
+    fn description(&self) -> &str {
+        match *self {
+            Error::Bech32(_) => "Bech32 error",
+            Error::WitnessProgram(_) => "witness program error",
+            Error::Conversion(_) => "bit conversion error",
+            Error::HumanReadableMismatch => "human-readable part mismatch",
+            Error::InvalidHumanReadablePart => "invalid human-readable part",
+        }
+    }
+
+    fn cause(&self) -> Option<&std::error::Error> {
+        match *self {
+            Error::Bech32(ref e) => Some(e),
+            Error::WitnessProgram(ref e) => Some(e),
+            Error::Conversion(ref e) => Some(e),
+            _ => None,
+        }
+    }
+}
+
 /// Error types for validating scriptpubkeys
 #[derive(PartialEq, Debug)]
 pub enum ScriptPubKeyError {
@@ -260,6 +308,26 @@ pub enum WitnessProgramError {
     InvalidScriptVersion,
 }
 
+impl fmt::Display for WitnessProgramError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            WitnessProgramError::InvalidLength => write!(f, "invalid length"),
+            WitnessProgramError::InvalidVersionLength => write!(f, "program length incompatible with version"),
+            WitnessProgramError::InvalidScriptVersion => write!(f, "invalid script versio"),
+        }
+    }
+}
+
+impl error::Error for WitnessProgramError {
+    fn description(&self) -> &str {
+        match *self {
+            WitnessProgramError::InvalidLength => "invalid length",
+            WitnessProgramError::InvalidVersionLength => "program length incompatible with version",
+            WitnessProgramError::InvalidScriptVersion => "invalid script version"
+        }
+    }
+}
+
 /// Error types during bit conversion
 #[derive(PartialEq, Debug)]
 pub enum BitConversionError {
@@ -269,19 +337,22 @@ pub enum BitConversionError {
     InvalidPadding,
 }
 
-/// Error types while encoding and decoding SegWit addresses
-#[derive(PartialEq, Debug)]
-pub enum Error {
-    /// Some Bech32 conversion error
-    Bech32(bech32::Error),
-    /// Some witness program error
-    WitnessProgram(WitnessProgramError),
-    /// Some 5-bit <-> 8-bit conversion error
-    Conversion(BitConversionError),
-    /// The provided human-readable portion does not match
-    HumanReadableMismatch,
-    /// The human-readable part is invalid (must be "bc" or "tb")
-    InvalidHumanReadablePart,
+impl fmt::Display for BitConversionError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            BitConversionError::InvalidInputValue(b) => write!(f, "invalid input value ({})", b),
+            BitConversionError::InvalidPadding => write!(f, "invalid padding"),
+        }
+    }
+}
+
+impl error::Error for BitConversionError {
+    fn description(&self) -> &str {
+        match *self {
+            BitConversionError::InvalidInputValue(_) => "invalid input value",
+            BitConversionError::InvalidPadding => "invalid padding",
+        }
+    }
 }
 
 #[cfg(test)]
