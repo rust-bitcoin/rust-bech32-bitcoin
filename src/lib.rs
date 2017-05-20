@@ -61,6 +61,9 @@ use bech32::Bech32;
 
 use std::{error, fmt};
 
+pub mod constants;
+use constants::Network;
+
 /// Witness version and program data
 #[derive(PartialEq, Debug, Clone)]
 pub struct WitnessProgram {
