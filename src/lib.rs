@@ -91,13 +91,13 @@ impl WitnessProgram {
         };
         // let p5 = convert_bits(self.program.to_vec(), 8, 5, true)?;
         data.extend_from_slice(&p5);
-        let b32 = Bech32 {hrp: hrp.clone(), data: data};
+        let b32 = Bech32 {hrp: hrp.clone().to_lowercase(), data: data};
         let address = match b32.to_string() {
             Ok(s) => s,
             Err(e) => return Err(Error::Bech32(e))
         };
         // Ensure that the address decodes into a program properly
-        WitnessProgram::from_address(hrp, address.clone())?;
+        WitnessProgram::from_address(hrp.to_lowercase(), address.clone())?;
         Ok(address)
     }
 
@@ -107,6 +107,7 @@ impl WitnessProgram {
     /// `hrp` and decodes as proper Bech32-encoded string. Allowed values of
     /// the human-readable part are 'bc' and 'tb'.
     pub fn from_address(hrp: String, address: String) -> DecodeResult {
+        let hrp = hrp.to_lowercase();
         if hrp != "bc".to_string() && hrp != "tb".to_string() {
             return Err(Error::InvalidHumanReadablePart)
         }
@@ -395,7 +396,7 @@ mod tests {
             let (address, desired_error) = p;
             let hrp = address[0..2].to_string();
             let dec_result = WitnessProgram::from_address(
-                hrp.to_lowercase(), address.to_string());
+                hrp, address.to_string());
             println!("{:?}", address.to_string());
             if dec_result.is_ok() {
                 println!("{:?}", dec_result.unwrap());
