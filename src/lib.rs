@@ -452,8 +452,12 @@ mod tests {
                 Error::Bech32(bech32::Error::MixedCase)),
             ("tb1pw508d6qejxtdg4y5r3zarqfsj6c3",
                 Error::Conversion(BitConversionError::InvalidPadding)),
+            ("bc1zw508d6qejxtdg4y5r3zarvaryvqyzf3du",
+                Error::Conversion(BitConversionError::InvalidPadding)),
             ("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3pjxtptv",
                 Error::Conversion(BitConversionError::InvalidPadding)),
+            ("bc1gmk9yu",
+                Error::Bech32(bech32::Error::InvalidLength)),
         );
         for p in pairs {
             let (address, desired_error) = p;
