@@ -18,34 +18,32 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#![warn(missing_docs)]
-
 //! Encoding and decoding Bech32 Bitcoin Segwit Addresses
-//! 
+//!
 //! Encoding and decoding for Bitcoin Segregated Witness addresses. Bech32 is an
 //! encoding scheme described in [BIP-0173](https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki),
 //! and segregated witness addresses encoded by Bech32 simply combine a coin-specific
 //! human-readable part with the data of the witness program as the Bech32 data
 //! payload.
-//! 
+//!
 //! # Examples
-//! 
+//!
 //! ```rust
 //! use bitcoin_bech32::WitnessProgram;
 //! use bitcoin_bech32::constants::Network;
-//! 
+//!
 //! let witness_program = WitnessProgram {
 //!     version: 0,
 //!     program: vec![
-//!                 0x00, 0x00, 0x00, 0xc4, 0xa5, 0xca, 0xd4, 0x62, 
-//!                 0x21, 0xb2, 0xa1, 0x87, 0x90, 0x5e, 0x52, 0x66, 
-//!                 0x36, 0x2b, 0x99, 0xd5, 0xe9, 0x1c, 0x6c, 0xe2, 
+//!                 0x00, 0x00, 0x00, 0xc4, 0xa5, 0xca, 0xd4, 0x62,
+//!                 0x21, 0xb2, 0xa1, 0x87, 0x90, 0x5e, 0x52, 0x66,
+//!                 0x36, 0x2b, 0x99, 0xd5, 0xe9, 0x1c, 0x6c, 0xe2,
 //!                 0x4d, 0x16, 0x5d, 0xab, 0x93, 0xe8, 0x64, 0x33],
 //!     network: Network::Testnet
 //! };
-//! 
+//!
 //! let address = witness_program.to_address().unwrap();
-//! assert_eq!(address, 
+//! assert_eq!(address,
 //!     "tb1qqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesrxh6hy".to_string());
 //!
 //! let decoded = WitnessProgram::from_address(address).unwrap();
@@ -59,7 +57,7 @@
 #![deny(unused_mut)]
 
 extern crate bech32;
-use bech32::Bech32;
+use bech32::{Bech32, convert_bits};
 
 use std::{error, fmt};
 
@@ -92,17 +90,17 @@ impl WitnessProgram {
         }
         let mut data: Vec<u8> = vec![self.version];
         // Convert 8-bit program into 5-bit
-        let p5 = match convert_bits(self.program.to_vec(), 8, 5, true) {
+        let p5 = match convert_bits(&self.program, 8, 5, true) {
             Ok(p) => p,
             Err(e) => return Err(Error::Conversion(e))
         };
         let hrp = constants::hrp(&self.network);
         data.extend_from_slice(&p5);
-        let b32 = Bech32 {hrp: hrp.clone(), data: data};
-        let address = match b32.to_string() {
-            Ok(s) => s,
+        let b32 = match Bech32::new(hrp.clone(), data) {
+            Ok(b) => b,
             Err(e) => return Err(Error::Bech32(e))
         };
+        let address = b32.to_string();
         // Ensure that the address decodes into a program properly
         WitnessProgram::from_address(address.clone())?;
         Ok(address)
@@ -110,27 +108,27 @@ impl WitnessProgram {
 
     /// Decodes a segwit address into a Witness Program
     ///
-    /// Verifies that the `address` contains a known human-readable part 
+    /// Verifies that the `address` contains a known human-readable part
     /// `hrp` and decodes as proper Bech32-encoded string. Allowed values of
     /// the human-readable part correspond to the defined types in `constants`
     pub fn from_address(address: String) -> DecodeResult {
-        let b32 = match Bech32::from_string(address) {
+        let b32 = match address.parse::<Bech32>() {
             Ok(b) => b,
             Err(e) => return Err(Error::Bech32(e)),
         };
-        let network_classified = constants::classify(&b32.hrp);
+        let network_classified = constants::classify(b32.hrp());
         if network_classified.is_none() {
             return Err(Error::InvalidHumanReadablePart)
         }
-        if b32.data.len() == 0 || b32.data.len() > 65 {
+        if b32.data().len() == 0 || b32.data().len() > 65 {
             return Err(Error::Bech32(bech32::Error::InvalidLength))
         }
         // Get the script version and 5-bit program
-        let (v, p5) = b32.data.split_at(1);
+        let (v, p5) = b32.data().split_at(1);
         let wp = WitnessProgram {
             version: v.to_vec()[0],
             // Convert to 8-bit program and assign
-            program: match convert_bits(p5.to_vec(), 5, 8, false) {
+            program: match convert_bits(&p5, 5, 8, false) {
                 Ok(p) => p,
                 Err(e) => return Err(Error::Conversion(e))
             },
@@ -144,7 +142,7 @@ impl WitnessProgram {
 
     /// Converts a `WitnessProgram` to a script public key
     ///
-    /// The format for the output is 
+    /// The format for the output is
     /// `[version, program length, <program>]`
     pub fn to_scriptpubkey(&self) -> Vec<u8> {
         let mut pubkey: Vec<u8> = Vec::new();
@@ -160,7 +158,7 @@ impl WitnessProgram {
 
     /// Extracts a WitnessProgram out of a provided script public key
     pub fn from_scriptpubkey(pubkey: &[u8], network: Network) -> PubKeyResult {
-        // We need a version byte and a program length byte, with a program at 
+        // We need a version byte and a program length byte, with a program at
         // least 2 bytes long.
         if pubkey.len() < 4 {
             return Err(ScriptPubKeyError::TooShort)
@@ -193,50 +191,12 @@ impl WitnessProgram {
             return Err(WitnessProgramError::InvalidLength)
         }
         // Check proper script length
-        if self.version == 0 && 
+        if self.version == 0 &&
                 self.program.len() != 20 && self.program.len() != 32 {
             return Err(WitnessProgramError::InvalidVersionLength)
         }
         Ok(())
     }
-}
-
-type ConvertResult = Result<Vec<u8>, BitConversionError>;
-
-/// Convert between bit sizes
-///
-/// # Panics
-/// Function will panic if attempting to convert `from` or `to` a bit size that
-/// is larger than 8 bits.
-fn convert_bits(data: Vec<u8>, from: u32, to: u32, pad: bool) -> ConvertResult {
-    if from > 8 || to > 8 {
-        panic!("convert_bits `from` and `to` parameters greater than 8");
-    }
-    let mut acc: u32 = 0;
-    let mut bits: u32 = 0;
-    let mut ret: Vec<u8> = Vec::new();
-    let maxv: u32 = (1<<to) - 1;
-    for value in data {
-        let v: u32 = value as u32;
-        if (v >> from) != 0 {
-            // Input value exceeds `from` bit size
-            return Err(BitConversionError::InvalidInputValue(v as u8))
-        }
-        acc = (acc << from) | v;
-        bits += from;
-        while bits >= to {
-            bits -= to;
-            ret.push(((acc >> bits) & maxv) as u8);
-        }
-    }
-    if pad {
-        if bits > 0 {
-            ret.push(((acc << (to - bits)) & maxv) as u8);
-        }
-    } else if bits >= from || ((acc << (to - bits)) & maxv) != 0 {
-        return Err(BitConversionError::InvalidPadding)
-    }
-    Ok(ret)
 }
 
 /// Error types while encoding and decoding SegWit addresses
@@ -247,7 +207,7 @@ pub enum Error {
     /// Some witness program error
     WitnessProgram(WitnessProgramError),
     /// Some 5-bit <-> 8-bit conversion error
-    Conversion(BitConversionError),
+    Conversion(bech32::Error),
     /// The human-readable part is invalid (must be "bc" or "tb")
     InvalidHumanReadablePart,
 }
@@ -326,33 +286,6 @@ impl error::Error for WitnessProgramError {
             WitnessProgramError::InvalidLength => "invalid length",
             WitnessProgramError::InvalidVersionLength => "program length incompatible with version",
             WitnessProgramError::InvalidScriptVersion => "invalid script version"
-        }
-    }
-}
-
-/// Error types during bit conversion
-#[derive(PartialEq, Debug)]
-pub enum BitConversionError {
-    /// Input value exceeds "from bits" size
-    InvalidInputValue(u8),
-    /// Invalid padding values in data
-    InvalidPadding,
-}
-
-impl fmt::Display for BitConversionError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            BitConversionError::InvalidInputValue(b) => write!(f, "invalid input value ({})", b),
-            BitConversionError::InvalidPadding => write!(f, "invalid padding"),
-        }
-    }
-}
-
-impl error::Error for BitConversionError {
-    fn description(&self) -> &str {
-        match *self {
-            BitConversionError::InvalidInputValue(_) => "invalid input value",
-            BitConversionError::InvalidPadding => "invalid padding",
         }
     }
 }
@@ -451,20 +384,18 @@ mod tests {
             ("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sL5k7",
                 Error::Bech32(bech32::Error::MixedCase)),
             ("tb1pw508d6qejxtdg4y5r3zarqfsj6c3",
-                Error::Conversion(BitConversionError::InvalidPadding)),
+                Error::Conversion(bech32::Error::InvalidPadding)),
             ("bc1zw508d6qejxtdg4y5r3zarvaryvqyzf3du",
-                Error::Conversion(BitConversionError::InvalidPadding)),
+                Error::Conversion(bech32::Error::InvalidPadding)),
             ("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3pjxtptv",
-                Error::Conversion(BitConversionError::InvalidPadding)),
+                Error::Conversion(bech32::Error::InvalidPadding)),
             ("bc1gmk9yu",
                 Error::Bech32(bech32::Error::InvalidLength)),
         );
         for p in pairs {
             let (address, desired_error) = p;
             let dec_result = WitnessProgram::from_address(address.to_string());
-            println!("{:?}", address.to_string());
             if dec_result.is_ok() {
-                println!("{:?}", dec_result.unwrap());
                 panic!("Should be invalid: {:?}", address);
             }
             assert_eq!(dec_result.unwrap_err(), desired_error);
