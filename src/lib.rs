@@ -46,7 +46,7 @@
 //! assert_eq!(address,
 //!     "tb1qqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesrxh6hy".to_string());
 //!
-//! let decoded = WitnessProgram::from_address(address).unwrap();
+//! let decoded = WitnessProgram::from_address(&address).unwrap();
 //! assert_eq!(decoded, witness_program);
 //! ```
 
@@ -93,7 +93,7 @@ impl WitnessProgram {
         let b32 = Bech32::new(hrp.clone(), data)?;
         let address = b32.to_string();
         // Ensure that the address decodes into a program properly
-        WitnessProgram::from_address(address.clone())?;
+        WitnessProgram::from_address(&address)?;
         Ok(address)
     }
 
@@ -102,7 +102,7 @@ impl WitnessProgram {
     /// Verifies that the `address` contains a known human-readable part
     /// `hrp` and decodes as proper Bech32-encoded string. Allowed values of
     /// the human-readable part correspond to the defined types in `constants`
-    pub fn from_address(address: String) -> DecodeResult {
+    pub fn from_address(address: &str) -> DecodeResult {
         let b32 = address.parse::<Bech32>()?;
         let network_classified = match constants::classify(b32.hrp()) {
             Some(nc) => nc,
@@ -337,7 +337,7 @@ mod tests {
         ];
         for p in pairs {
             let (address, scriptpubkey) = p;
-            let dec_result = WitnessProgram::from_address(address.to_string());
+            let dec_result = WitnessProgram::from_address(&address);
             assert!(dec_result.is_ok());
 
             let prog = dec_result.unwrap();
@@ -384,7 +384,7 @@ mod tests {
         );
         for p in pairs {
             let (address, desired_error) = p;
-            let dec_result = WitnessProgram::from_address(address.to_string());
+            let dec_result = WitnessProgram::from_address(&address);
             if dec_result.is_ok() {
                 panic!("Should be invalid: {:?}", address);
             }
