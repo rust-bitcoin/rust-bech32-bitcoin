@@ -108,7 +108,7 @@ impl WitnessProgram {
             Some(nc) => nc,
             None => return Err(Error::InvalidHumanReadablePart)
         };
-        if b32.data().len() == 0 || b32.data().len() > 65 {
+        if b32.data().is_empty() || b32.data().len() > 65 {
             return Err(Error::Bech32(bech32::Error::InvalidLength))
         }
         // Get the script version and 5-bit program
@@ -116,7 +116,7 @@ impl WitnessProgram {
         let wp = WitnessProgram {
             version: v.to_vec()[0],
             // Convert to 8-bit program and assign
-            program: convert_bits(&p5, 5, 8, false)?,
+            program: convert_bits(p5, 5, 8, false)?,
             network: network_classified,
         };
         wp.validate()?;
