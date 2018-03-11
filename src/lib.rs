@@ -46,7 +46,7 @@
 //! assert_eq!(address,
 //!     "tb1qqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesrxh6hy".to_string());
 //!
-//! let decoded = WitnessProgram::from_address(address).unwrap();
+//! let decoded = WitnessProgram::from_address(&address).unwrap();
 //! assert_eq!(decoded, witness_program);
 //! ```
 
@@ -84,25 +84,16 @@ impl WitnessProgram {
     /// Converts a Witness Program to a SegWit Address
     pub fn to_address(&self) -> EncodeResult {
         // Verify that the program is valid
-        let val_result = self.validate();
-        if val_result.is_err() {
-            return Err(Error::WitnessProgram(val_result.unwrap_err()))
-        }
+        self.validate()?;
         let mut data: Vec<u8> = vec![self.version];
         // Convert 8-bit program into 5-bit
-        let p5 = match convert_bits(&self.program, 8, 5, true) {
-            Ok(p) => p,
-            Err(e) => return Err(Error::Conversion(e))
-        };
+        let p5 = convert_bits(&self.program, 8, 5, true)?;
         let hrp = constants::hrp(&self.network);
         data.extend_from_slice(&p5);
-        let b32 = match Bech32::new(hrp.clone(), data) {
-            Ok(b) => b,
-            Err(e) => return Err(Error::Bech32(e))
-        };
+        let b32 = Bech32::new(hrp.clone(), data)?;
         let address = b32.to_string();
         // Ensure that the address decodes into a program properly
-        WitnessProgram::from_address(address.clone())?;
+        WitnessProgram::from_address(&address)?;
         Ok(address)
     }
 
@@ -111,16 +102,13 @@ impl WitnessProgram {
     /// Verifies that the `address` contains a known human-readable part
     /// `hrp` and decodes as proper Bech32-encoded string. Allowed values of
     /// the human-readable part correspond to the defined types in `constants`
-    pub fn from_address(address: String) -> DecodeResult {
-        let b32 = match address.parse::<Bech32>() {
-            Ok(b) => b,
-            Err(e) => return Err(Error::Bech32(e)),
+    pub fn from_address(address: &str) -> DecodeResult {
+        let b32 = address.parse::<Bech32>()?;
+        let network_classified = match constants::classify(b32.hrp()) {
+            Some(nc) => nc,
+            None => return Err(Error::InvalidHumanReadablePart)
         };
-        let network_classified = constants::classify(b32.hrp());
-        if network_classified.is_none() {
-            return Err(Error::InvalidHumanReadablePart)
-        }
-        if b32.data().len() == 0 || b32.data().len() > 65 {
+        if b32.data().is_empty() || b32.data().len() > 65 {
             return Err(Error::Bech32(bech32::Error::InvalidLength))
         }
         // Get the script version and 5-bit program
@@ -128,16 +116,11 @@ impl WitnessProgram {
         let wp = WitnessProgram {
             version: v.to_vec()[0],
             // Convert to 8-bit program and assign
-            program: match convert_bits(&p5, 5, 8, false) {
-                Ok(p) => p,
-                Err(e) => return Err(Error::Conversion(e))
-            },
-            network: network_classified.unwrap()
+            program: convert_bits(p5, 5, 8, false)?,
+            network: network_classified,
         };
-        match wp.validate() {
-            Ok(_) => Ok(wp),
-            Err(e) => Err(Error::WitnessProgram(e))
-        }
+        wp.validate()?;
+        Ok(wp)
     }
 
     /// Converts a `WitnessProgram` to a script public key
@@ -206,10 +189,20 @@ pub enum Error {
     Bech32(bech32::Error),
     /// Some witness program error
     WitnessProgram(WitnessProgramError),
-    /// Some 5-bit <-> 8-bit conversion error
-    Conversion(bech32::Error),
     /// The human-readable part is invalid (must be "bc" or "tb")
     InvalidHumanReadablePart,
+}
+
+impl From<bech32::Error> for Error {
+    fn from(e: bech32::Error) -> Error {
+        Error::Bech32(e)
+    }
+}
+
+impl From<WitnessProgramError> for Error {
+    fn from(e: WitnessProgramError) -> Error {
+        Error::WitnessProgram(e)
+    }
 }
 
 impl fmt::Display for Error {
@@ -217,7 +210,6 @@ impl fmt::Display for Error {
         match *self {
             Error::Bech32(ref e) => write!(f, "{}", e),
             Error::WitnessProgram(ref e) => write!(f, "{}", e),
-            Error::Conversion(ref e) => write!(f, "{}", e),
             Error::InvalidHumanReadablePart => write!(f, "invalid human-readable part"),
         }
     }
@@ -228,7 +220,6 @@ impl error::Error for Error {
         match *self {
             Error::Bech32(_) => "Bech32 error",
             Error::WitnessProgram(_) => "witness program error",
-            Error::Conversion(_) => "bit conversion error",
             Error::InvalidHumanReadablePart => "invalid human-readable part",
         }
     }
@@ -237,7 +228,6 @@ impl error::Error for Error {
         match *self {
             Error::Bech32(ref e) => Some(e),
             Error::WitnessProgram(ref e) => Some(e),
-            Error::Conversion(ref e) => Some(e),
             _ => None,
         }
     }
@@ -347,7 +337,7 @@ mod tests {
         ];
         for p in pairs {
             let (address, scriptpubkey) = p;
-            let dec_result = WitnessProgram::from_address(address.to_string());
+            let dec_result = WitnessProgram::from_address(&address);
             assert!(dec_result.is_ok());
 
             let prog = dec_result.unwrap();
@@ -384,17 +374,17 @@ mod tests {
             ("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sL5k7",
                 Error::Bech32(bech32::Error::MixedCase)),
             ("tb1pw508d6qejxtdg4y5r3zarqfsj6c3",
-                Error::Conversion(bech32::Error::InvalidPadding)),
+                Error::Bech32(bech32::Error::InvalidPadding)),
             ("bc1zw508d6qejxtdg4y5r3zarvaryvqyzf3du",
-                Error::Conversion(bech32::Error::InvalidPadding)),
+                Error::Bech32(bech32::Error::InvalidPadding)),
             ("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3pjxtptv",
-                Error::Conversion(bech32::Error::InvalidPadding)),
+                Error::Bech32(bech32::Error::InvalidPadding)),
             ("bc1gmk9yu",
                 Error::Bech32(bech32::Error::InvalidLength)),
         );
         for p in pairs {
             let (address, desired_error) = p;
-            let dec_result = WitnessProgram::from_address(address.to_string());
+            let dec_result = WitnessProgram::from_address(&address);
             if dec_result.is_ok() {
                 panic!("Should be invalid: {:?}", address);
             }
