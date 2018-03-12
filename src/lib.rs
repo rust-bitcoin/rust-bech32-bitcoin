@@ -75,14 +75,9 @@ pub struct WitnessProgram {
     pub network: Network,
 }
 
-type EncodeResult = Result<String, Error>;
-type DecodeResult = Result<WitnessProgram, Error>;
-type PubKeyResult = Result<WitnessProgram, ScriptPubKeyError>;
-type ValidationResult = Result<(), WitnessProgramError>;
-
 impl WitnessProgram {
     /// Converts a Witness Program to a SegWit Address
-    pub fn to_address(&self) -> EncodeResult {
+    pub fn to_address(&self) -> Result<String, Error> {
         // Verify that the program is valid
         self.validate()?;
         let mut data: Vec<u8> = vec![self.version];
@@ -102,7 +97,7 @@ impl WitnessProgram {
     /// Verifies that the `address` contains a known human-readable part
     /// `hrp` and decodes as proper Bech32-encoded string. Allowed values of
     /// the human-readable part correspond to the defined types in `constants`
-    pub fn from_address(address: &str) -> DecodeResult {
+    pub fn from_address(address: &str) -> Result<WitnessProgram, Error> {
         let b32 = address.parse::<Bech32>()?;
         let network_classified = match constants::classify(b32.hrp()) {
             Some(nc) => nc,
@@ -140,16 +135,16 @@ impl WitnessProgram {
     }
 
     /// Extracts a WitnessProgram out of a provided script public key
-    pub fn from_scriptpubkey(pubkey: &[u8], network: Network) -> PubKeyResult {
+    pub fn from_scriptpubkey(pubkey: &[u8], network: Network) -> Result<WitnessProgram, Error> {
         // We need a version byte and a program length byte, with a program at
         // least 2 bytes long.
         if pubkey.len() < 4 {
-            return Err(ScriptPubKeyError::TooShort)
+            return Err(Error::ScriptPubkeyTooShort)
         }
         let proglen: usize = pubkey[1] as usize;
         // Check that program length byte is consistent with pubkey length
         if pubkey.len() != 2 + proglen {
-            return Err(ScriptPubKeyError::InvalidLengthByte)
+            return Err(Error::ScriptPubkeyInvalidLength)
         }
         // Process script version
         let mut v: u8 = pubkey[0];
@@ -165,81 +160,21 @@ impl WitnessProgram {
     }
 
     /// Validates the WitnessProgram against version and length constraints
-    pub fn validate(&self) -> ValidationResult {
+    pub fn validate(&self) -> Result<(), Error> {
         if self.version > 16 {
             // Invalid script version
-            return Err(WitnessProgramError::InvalidScriptVersion)
+            return Err(Error::InvalidScriptVersion)
         }
         if self.program.len() < 2 || self.program.len() > 40 {
-            return Err(WitnessProgramError::InvalidLength)
+            return Err(Error::InvalidLength)
         }
         // Check proper script length
         if self.version == 0 &&
                 self.program.len() != 20 && self.program.len() != 32 {
-            return Err(WitnessProgramError::InvalidVersionLength)
+            return Err(Error::InvalidVersionLength)
         }
         Ok(())
     }
-}
-
-/// Error types while encoding and decoding SegWit addresses
-#[derive(PartialEq, Debug)]
-pub enum Error {
-    /// Some Bech32 conversion error
-    Bech32(bech32::Error),
-    /// Some witness program error
-    WitnessProgram(WitnessProgramError),
-    /// The human-readable part is invalid (must be "bc" or "tb")
-    InvalidHumanReadablePart,
-}
-
-impl From<bech32::Error> for Error {
-    fn from(e: bech32::Error) -> Error {
-        Error::Bech32(e)
-    }
-}
-
-impl From<WitnessProgramError> for Error {
-    fn from(e: WitnessProgramError) -> Error {
-        Error::WitnessProgram(e)
-    }
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Error::Bech32(ref e) => write!(f, "{}", e),
-            Error::WitnessProgram(ref e) => write!(f, "{}", e),
-            Error::InvalidHumanReadablePart => write!(f, "invalid human-readable part"),
-        }
-    }
-}
-
-impl error::Error for Error {
-    fn description(&self) -> &str {
-        match *self {
-            Error::Bech32(_) => "Bech32 error",
-            Error::WitnessProgram(_) => "witness program error",
-            Error::InvalidHumanReadablePart => "invalid human-readable part",
-        }
-    }
-
-    fn cause(&self) -> Option<&std::error::Error> {
-        match *self {
-            Error::Bech32(ref e) => Some(e),
-            Error::WitnessProgram(ref e) => Some(e),
-            _ => None,
-        }
-    }
-}
-
-/// Error types for validating scriptpubkeys
-#[derive(PartialEq, Debug)]
-pub enum ScriptPubKeyError {
-    /// scriptpubkeys does not have enough data
-    TooShort,
-    /// The provided length byte does not match the data
-    InvalidLengthByte,
 }
 
 /// Error types for witness programs
@@ -247,7 +182,15 @@ pub enum ScriptPubKeyError {
 /// BIP141 specifies Segregated Witness and defines valid program lengths
 /// for Version 0 scripts. Script version is also limited to values 0-16.
 #[derive(PartialEq, Debug)]
-pub enum WitnessProgramError {
+pub enum Error {
+    /// Some Bech32 conversion error
+    Bech32(bech32::Error),
+    /// The human-readable part is invalid (must be "bc" or "tb")
+    InvalidHumanReadablePart,
+    /// scriptpubkeys does not have enough data
+    ScriptPubkeyTooShort,
+    /// The provided length byte does not match the data
+    ScriptPubkeyInvalidLength,
     /// Denotes that the WitnessProgram is too long or too short
     ///
     /// Programs must be between 2 and 40 bytes
@@ -260,22 +203,43 @@ pub enum WitnessProgramError {
     InvalidScriptVersion,
 }
 
-impl fmt::Display for WitnessProgramError {
+impl From<bech32::Error> for Error {
+    fn from(e: bech32::Error) -> Error {
+        Error::Bech32(e)
+    }
+}
+
+impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            WitnessProgramError::InvalidLength => write!(f, "invalid length"),
-            WitnessProgramError::InvalidVersionLength => write!(f, "program length incompatible with version"),
-            WitnessProgramError::InvalidScriptVersion => write!(f, "invalid script versio"),
+            Error::Bech32(ref e) => write!(f, "{}", e),
+            Error::InvalidHumanReadablePart => write!(f, "invalid human-readable part"),
+            Error::ScriptPubkeyTooShort => write!(f, "scriptpubkey too short"),
+            Error::ScriptPubkeyInvalidLength => write!(f, "scriptpubkey length mismatch"),
+            Error::InvalidLength => write!(f, "invalid length"),
+            Error::InvalidVersionLength => write!(f, "program length incompatible with version"),
+            Error::InvalidScriptVersion => write!(f, "invalid script versio"),
         }
     }
 }
 
-impl error::Error for WitnessProgramError {
+impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
-            WitnessProgramError::InvalidLength => "invalid length",
-            WitnessProgramError::InvalidVersionLength => "program length incompatible with version",
-            WitnessProgramError::InvalidScriptVersion => "invalid script version"
+            Error::Bech32(_) => "Bech32 error",
+            Error::InvalidHumanReadablePart => "invalid human-readable part",
+            Error::ScriptPubkeyTooShort => "scriptpubkey too short",
+            Error::ScriptPubkeyInvalidLength => "scriptpubkey length mismatch",
+            Error::InvalidLength => "invalid length",
+            Error::InvalidVersionLength => "program length incompatible with version",
+            Error::InvalidScriptVersion => "invalid script version"
+        }
+    }
+
+    fn cause(&self) -> Option<&std::error::Error> {
+        match *self {
+            Error::Bech32(ref e) => Some(e),
+            _ => None,
         }
     }
 }
@@ -364,13 +328,13 @@ mod tests {
             ("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5",
                 Error::Bech32(bech32::Error::InvalidChecksum)),
             ("BC13W508D6QEJXTDG4Y5R3ZARVARY0C5XW7KN40WF2",
-                Error::WitnessProgram(WitnessProgramError::InvalidScriptVersion)),
+                Error::InvalidScriptVersion),
             ("bc1rw5uspcuh",
-                Error::WitnessProgram(WitnessProgramError::InvalidLength)),
+                Error::InvalidLength),
             ("bc10w508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7kw5rljs90",
                 Error::Bech32(bech32::Error::InvalidLength)),
             ("BC1QR508D6QEJXTDG4Y5R3ZARVARYV98GJ9P",
-                Error::WitnessProgram(WitnessProgramError::InvalidVersionLength)),
+                Error::InvalidVersionLength),
             ("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sL5k7",
                 Error::Bech32(bech32::Error::MixedCase)),
             ("tb1pw508d6qejxtdg4y5r3zarqfsj6c3",
