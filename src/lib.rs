@@ -32,17 +32,17 @@
 //! use bitcoin_bech32::WitnessProgram;
 //! use bitcoin_bech32::constants::Network;
 //!
-//! let witness_program = WitnessProgram {
-//!     version: 0,
-//!     program: vec![
-//!                 0x00, 0x00, 0x00, 0xc4, 0xa5, 0xca, 0xd4, 0x62,
-//!                 0x21, 0xb2, 0xa1, 0x87, 0x90, 0x5e, 0x52, 0x66,
-//!                 0x36, 0x2b, 0x99, 0xd5, 0xe9, 0x1c, 0x6c, 0xe2,
-//!                 0x4d, 0x16, 0x5d, 0xab, 0x93, 0xe8, 0x64, 0x33],
-//!     network: Network::Testnet
-//! };
+//! let witness_program = WitnessProgram::new(
+//!     0,
+//!     vec![
+//!         0x00, 0x00, 0x00, 0xc4, 0xa5, 0xca, 0xd4, 0x62,
+//!         0x21, 0xb2, 0xa1, 0x87, 0x90, 0x5e, 0x52, 0x66,
+//!         0x36, 0x2b, 0x99, 0xd5, 0xe9, 0x1c, 0x6c, 0xe2,
+//!         0x4d, 0x16, 0x5d, 0xab, 0x93, 0xe8, 0x64, 0x33],
+//!     Network::Testnet
+//! ).unwrap();
 //!
-//! let address = witness_program.to_address().unwrap();
+//! let address = witness_program.to_address();
 //! assert_eq!(address,
 //!     "tb1qqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesrxh6hy".to_string());
 //!
@@ -60,6 +60,8 @@ extern crate bech32;
 use bech32::{Bech32, convert_bits};
 
 use std::{error, fmt};
+use std::str::FromStr;
+use std::string::ToString;
 
 pub mod constants;
 use constants::Network;
@@ -68,28 +70,41 @@ use constants::Network;
 #[derive(PartialEq, Debug, Clone)]
 pub struct WitnessProgram {
     /// Witness program version
-    pub version: u8,
+    version: u8,
     /// Witness program content
-    pub program: Vec<u8>,
+    program: Vec<u8>,
     /// Cryptocurrency network
-    pub network: Network,
+    network: Network,
+    /// Cached bech32 representation of the witness program
+    bech32: Bech32,
 }
 
 impl WitnessProgram {
-    /// Converts a Witness Program to a SegWit Address
-    pub fn to_address(&self) -> Result<String, Error> {
+    /// Construct a new WitnessProgram given the constituent version, witness program and network version
+    pub fn new(version: u8, program: Vec<u8>, network: Network) -> Result<WitnessProgram, Error> {
+        // Compute bech32
+        let hrp = constants::hrp(&network);
+        let mut b32_data: Vec<u8> = vec![version];
+        let p5 = convert_bits(&program, 8, 5, true)?;
+        b32_data.extend_from_slice(&p5);
+        let bech32 = Bech32::new(hrp.clone(), b32_data)?;
+
+        // Create return object
+        let ret = WitnessProgram {
+            version: version,
+            program: program,
+            network: network,
+            bech32: bech32,
+        };
+
         // Verify that the program is valid
-        self.validate()?;
-        let mut data: Vec<u8> = vec![self.version];
-        // Convert 8-bit program into 5-bit
-        let p5 = convert_bits(&self.program, 8, 5, true)?;
-        let hrp = constants::hrp(&self.network);
-        data.extend_from_slice(&p5);
-        let b32 = Bech32::new(hrp.clone(), data)?;
-        let address = b32.to_string();
-        // Ensure that the address decodes into a program properly
-        WitnessProgram::from_address(&address)?;
-        Ok(address)
+        ret.validate()?;
+        Ok(ret)
+    }
+
+    /// Converts a Witness Program to a SegWit Address
+    pub fn to_address(&self) -> String {
+        self.to_string()
     }
 
     /// Decodes a segwit address into a Witness Program
@@ -98,24 +113,7 @@ impl WitnessProgram {
     /// `hrp` and decodes as proper Bech32-encoded string. Allowed values of
     /// the human-readable part correspond to the defined types in `constants`
     pub fn from_address(address: &str) -> Result<WitnessProgram, Error> {
-        let b32 = address.parse::<Bech32>()?;
-        let network_classified = match constants::classify(b32.hrp()) {
-            Some(nc) => nc,
-            None => return Err(Error::InvalidHumanReadablePart)
-        };
-        if b32.data().is_empty() || b32.data().len() > 65 {
-            return Err(Error::Bech32(bech32::Error::InvalidLength))
-        }
-        // Get the script version and 5-bit program
-        let (v, p5) = b32.data().split_at(1);
-        let wp = WitnessProgram {
-            version: v.to_vec()[0],
-            // Convert to 8-bit program and assign
-            program: convert_bits(p5, 5, 8, false)?,
-            network: network_classified,
-        };
-        wp.validate()?;
-        Ok(wp)
+        WitnessProgram::from_str(address)
     }
 
     /// Converts a `WitnessProgram` to a script public key
@@ -152,11 +150,7 @@ impl WitnessProgram {
             v -= 0x50;
         }
         let program = &pubkey[2..];
-        Ok(WitnessProgram {
-            version: v,
-            program: program.to_vec(),
-            network: network,
-        })
+        WitnessProgram::new(v, program.to_vec(), network)
     }
 
     /// Validates the WitnessProgram against version and length constraints
@@ -174,6 +168,41 @@ impl WitnessProgram {
             return Err(Error::InvalidVersionLength)
         }
         Ok(())
+    }
+}
+
+impl ToString for WitnessProgram {
+    fn to_string(&self) -> String {
+        self.bech32.to_string()
+    }
+}
+
+impl FromStr for WitnessProgram {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<WitnessProgram, Error> {
+        let b32 = s.parse::<Bech32>()?;
+        let network_classified = match constants::classify(b32.hrp()) {
+            Some(nc) => nc,
+            None => return Err(Error::InvalidHumanReadablePart)
+        };
+        if b32.data().is_empty() || b32.data().len() > 65 {
+            return Err(Error::Bech32(bech32::Error::InvalidLength))
+        }
+        // Get the script version and program (converted from 5-bit to 8-bit)
+        let (version, program) = {
+            let (v, p5) = b32.data().split_at(1);
+            let program = convert_bits(p5, 5, 8, false)?;
+            (v[0], program)
+        };
+        let wp = WitnessProgram {
+            version: version,
+            program: program,
+            network: network_classified,
+            bech32: b32,
+        };
+        wp.validate()?;
+        Ok(wp)
     }
 }
 
@@ -312,10 +341,7 @@ mod tests {
             assert!(spk_result.is_ok());
             assert_eq!(prog, spk_result.unwrap());
 
-            let enc_result = prog.to_address();
-            assert!(enc_result.is_ok());
-
-            let enc_address = enc_result.unwrap();
+            let enc_address = prog.to_address();
             assert_eq!(address.to_lowercase(), enc_address.to_lowercase());
         }
     }
