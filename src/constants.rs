@@ -24,7 +24,7 @@
 //! maintained in [SLIP-0173](https://github.com/satoshilabs/slips/blob/master/slip-0173.md).
 
 /// The cryptocurrency to act on
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Network {
     /// Bitcoin mainnet
     Bitcoin,
