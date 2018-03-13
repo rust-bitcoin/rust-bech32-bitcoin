@@ -169,6 +169,21 @@ impl WitnessProgram {
         }
         Ok(())
     }
+
+    /// Witness program version
+    pub fn version(&self) -> u8 {
+        self.version
+    }
+
+    /// Witness program serialized as 8-bit bytes
+    pub fn program(&self) -> &[u8] {
+        &self.program
+    }
+
+    /// Which network this witness program is intended to be run on
+    pub fn network(&self) -> Network {
+        self.network
+    }
 }
 
 impl ToString for WitnessProgram {
@@ -279,13 +294,14 @@ mod tests {
 
     #[test]
     fn valid_address() {
-        let pairs: Vec<(&str, Vec<u8>)> = vec![
+        let pairs: Vec<(&str, Vec<u8>, Network)> = vec![
             (
                 "BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4",
                 vec![
                     0x00, 0x14, 0x75, 0x1e, 0x76, 0xe8, 0x19, 0x91, 0x96, 0xd4, 0x54,
                     0x94, 0x1c, 0x45, 0xd1, 0xb3, 0xa3, 0x23, 0xf1, 0x43, 0x3b, 0xd6
-                ]
+                ],
+                Network::Bitcoin,
             ),
             (
                 "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7",
@@ -294,7 +310,8 @@ mod tests {
                     0xbd, 0x19, 0x20, 0x33, 0x56, 0xda, 0x13, 0x6c, 0x98, 0x56, 0x78,
                     0xcd, 0x4d, 0x27, 0xa1, 0xb8, 0xc6, 0x32, 0x96, 0x04, 0x90, 0x32,
                     0x62
-                ]
+                ],
+                Network::Testnet
             ),
             (
                 "bc1pw508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7k7grplx",
@@ -303,20 +320,23 @@ mod tests {
                     0x94, 0x1c, 0x45, 0xd1, 0xb3, 0xa3, 0x23, 0xf1, 0x43, 0x3b, 0xd6,
                     0x75, 0x1e, 0x76, 0xe8, 0x19, 0x91, 0x96, 0xd4, 0x54, 0x94, 0x1c,
                     0x45, 0xd1, 0xb3, 0xa3, 0x23, 0xf1, 0x43, 0x3b, 0xd6
-                ]
+                ],
+                Network::Bitcoin,
             ),
             (
                 "BC1SW50QA3JX3S",
                 vec![
                    0x60, 0x02, 0x75, 0x1e
-                ]
+                ],
+                Network::Bitcoin,
             ),
             (
                 "bc1zw508d6qejxtdg4y5r3zarvaryvg6kdaj",
                 vec![
                     0x52, 0x10, 0x75, 0x1e, 0x76, 0xe8, 0x19, 0x91, 0x96, 0xd4, 0x54,
                     0x94, 0x1c, 0x45, 0xd1, 0xb3, 0xa3, 0x23
-                ]
+                ],
+                Network::Bitcoin,
             ),
             (
                 "tb1qqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesrxh6hy",
@@ -325,17 +345,23 @@ mod tests {
                     0xb2, 0xa1, 0x87, 0x90, 0x5e, 0x52, 0x66, 0x36, 0x2b, 0x99, 0xd5,
                     0xe9, 0x1c, 0x6c, 0xe2, 0x4d, 0x16, 0x5d, 0xab, 0x93, 0xe8, 0x64,
                     0x33
-                ]
+                ],
+                Network::Testnet,
             ),
         ];
         for p in pairs {
-            let (address, scriptpubkey) = p;
+            let (address, scriptpubkey, network) = p;
+            let version = if scriptpubkey[0] == 0 { 0 } else { scriptpubkey[0] - 0x50 };
             let dec_result = WitnessProgram::from_address(&address);
             assert!(dec_result.is_ok());
 
             let prog = dec_result.unwrap();
             let pubkey = prog.clone().to_scriptpubkey();
             assert_eq!(pubkey, scriptpubkey);
+
+            assert_eq!(prog.network(), network);
+            assert_eq!(prog.version(), version);
+            assert_eq!(prog.program(), &scriptpubkey[2..]); // skip version and length
 
             let spk_result = WitnessProgram::from_scriptpubkey(&scriptpubkey, prog.network.clone());
             assert!(spk_result.is_ok());
