@@ -291,6 +291,8 @@ impl error::Error for Error {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bech32;
+    use constants::Network;
 
     #[test]
     fn valid_address() {
