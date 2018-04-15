@@ -29,11 +29,11 @@
 //! # Examples
 //!
 //! ```rust
-//! use bitcoin_bech32::WitnessProgram;
+//! use bitcoin_bech32::{WitnessProgram, u5};
 //! use bitcoin_bech32::constants::Network;
 //!
 //! let witness_program = WitnessProgram::new(
-//!     0,
+//!     u5::try_from_u8(0).unwrap(),
 //!     vec![
 //!         0x00, 0x00, 0x00, 0xc4, 0xa5, 0xca, 0xd4, 0x62,
 //!         0x21, 0xb2, 0xa1, 0x87, 0x90, 0x5e, 0x52, 0x66,
@@ -57,7 +57,8 @@
 #![deny(unused_mut)]
 
 extern crate bech32;
-use bech32::{Bech32, convert_bits};
+use bech32::{Bech32, ToBase32, FromBase32};
+pub use bech32::u5;
 
 use std::{error, fmt};
 use std::str::FromStr;
@@ -70,7 +71,7 @@ use constants::Network;
 #[derive(PartialEq, Debug, Clone)]
 pub struct WitnessProgram {
     /// Witness program version
-    version: u8,
+    version: u5,
     /// Witness program content
     program: Vec<u8>,
     /// Cryptocurrency network
@@ -81,11 +82,11 @@ pub struct WitnessProgram {
 
 impl WitnessProgram {
     /// Construct a new WitnessProgram given the constituent version, witness program and network version
-    pub fn new(version: u8, program: Vec<u8>, network: Network) -> Result<WitnessProgram, Error> {
+    pub fn new(version: u5, program: Vec<u8>, network: Network) -> Result<WitnessProgram, Error> {
         // Compute bech32
         let hrp = constants::hrp(&network);
-        let mut b32_data: Vec<u8> = vec![version];
-        let p5 = convert_bits(&program, 8, 5, true)?;
+        let mut b32_data: Vec<u5> = vec![version];
+        let p5 = program.to_base32();
         b32_data.extend_from_slice(&p5);
         let bech32 = Bech32::new(hrp.clone(), b32_data)?;
 
@@ -122,7 +123,7 @@ impl WitnessProgram {
     /// `[version, program length, <program>]`
     pub fn to_scriptpubkey(&self) -> Vec<u8> {
         let mut pubkey: Vec<u8> = Vec::new();
-        let mut v = self.version;
+        let mut v: u8 = self.version.into();
         if v > 0 {
             v += 0x50;
         }
@@ -149,13 +150,16 @@ impl WitnessProgram {
         if v > 0x50 {
             v -= 0x50;
         }
+
+        let v = u5::try_from_u8(v).expect("range is already guaranteed by code above");
         let program = &pubkey[2..];
+
         WitnessProgram::new(v, program.to_vec(), network)
     }
 
     /// Validates the WitnessProgram against version and length constraints
     pub fn validate(&self) -> Result<(), Error> {
-        if self.version > 16 {
+        if self.version.to_u8() > 16 {
             // Invalid script version
             return Err(Error::InvalidScriptVersion)
         }
@@ -163,7 +167,7 @@ impl WitnessProgram {
             return Err(Error::InvalidLength)
         }
         // Check proper script length
-        if self.version == 0 &&
+        if self.version.to_u8() == 0 &&
                 self.program.len() != 20 && self.program.len() != 32 {
             return Err(Error::InvalidVersionLength)
         }
@@ -171,7 +175,7 @@ impl WitnessProgram {
     }
 
     /// Witness program version
-    pub fn version(&self) -> u8 {
+    pub fn version(&self) -> u5 {
         self.version
     }
 
@@ -207,7 +211,7 @@ impl FromStr for WitnessProgram {
         // Get the script version and program (converted from 5-bit to 8-bit)
         let (version, program) = {
             let (v, p5) = b32.data().split_at(1);
-            let program = convert_bits(p5, 5, 8, false)?;
+            let program = Vec::from_base32(p5)?;
             (v[0], program)
         };
         let wp = WitnessProgram {
@@ -290,9 +294,9 @@ impl error::Error for Error {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use ::*;
+    use ::constants::Network;
     use bech32;
-    use constants::Network;
 
     #[test]
     fn valid_address() {
@@ -362,7 +366,7 @@ mod tests {
             assert_eq!(pubkey, scriptpubkey);
 
             assert_eq!(prog.network(), network);
-            assert_eq!(prog.version(), version);
+            assert_eq!(prog.version().to_u8(), version);
             assert_eq!(prog.program(), &scriptpubkey[2..]); // skip version and length
 
             let spk_result = WitnessProgram::from_scriptpubkey(&scriptpubkey, prog.network.clone());
