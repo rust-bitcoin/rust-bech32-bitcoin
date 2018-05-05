@@ -5,11 +5,11 @@ Encodes and decodes Bitcoin Segregated Witness addresses in the Bech32 format de
 ## Example
 
 ```rust
-use bitcoin_bech32::WitnessProgram;
+use bitcoin_bech32::{WitnessProgram, u5};
 use bitcoin_bech32::constants::Network;
 
 let witness_program = WitnessProgram {
-     version: 0,
+     version: u5::try_from_u8(0).unwrap(),
      program: vec![
                  0x00, 0x00, 0x00, 0xc4, 0xa5, 0xca, 0xd4, 0x62, 
                  0x21, 0xb2, 0xa1, 0x87, 0x90, 0x5e, 0x52, 0x66, 
