@@ -68,7 +68,7 @@ pub mod constants;
 use constants::Network;
 
 /// Witness version and program data
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Ord, Hash)]
 pub struct WitnessProgram {
     /// Witness program version
     version: u5,
