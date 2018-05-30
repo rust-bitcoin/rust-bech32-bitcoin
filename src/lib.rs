@@ -348,6 +348,14 @@ mod tests {
                 ],
                 Network::Testnet,
             ),
+            (
+                "bcrt1qn3h68k2u0rr49skx05qw7veynpf4lfppd2demt",
+               vec![
+                    0x00, 0x14, 0x9c, 0x6f, 0xa3, 0xd9, 0x5c, 0x78, 0xc7, 0x52, 0xc2,
+                    0xc6, 0x7d, 0x00, 0xef, 0x33, 0x24, 0x98, 0x53, 0x5f, 0xa4, 0x21,
+                ],
+               Network::BitcoinCoreRegtest,
+            ),
         ];
         for p in pairs {
             let (address, scriptpubkey, network) = p;
