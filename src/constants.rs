@@ -30,6 +30,8 @@ pub enum Network {
     Bitcoin,
     /// Bitcoin testnet
     Testnet,
+    /// Bitcoin regtest,
+    Regtest,
     /// Litecoin mainnet
     Litecoin,
     /// Litecoin testnet
@@ -38,9 +40,6 @@ pub enum Network {
     Vertcoin,
     /// Vertcoin testnet
     VertcoinTestnet,
-    /// Bitcoin-Core Regtest,
-    BitcoinCoreRegtest,
-
 }
 
 /// Returns the Human-readable part for the given network
@@ -52,7 +51,7 @@ pub fn hrp(network: &Network) -> String {
         Network::LitecoinTestnet => "tltc".to_string(),
         Network::Vertcoin => "vtc".to_string(),
         Network::VertcoinTestnet => "tvtc".to_string(),
-        Network::BitcoinCoreRegtest => "bcrt".to_string(),
+        Network::Regtest => "bcrt".to_string(),
     }
 }
 
@@ -65,7 +64,7 @@ pub fn classify(hrp: &str) -> Option<Network> {
         "tltc" => Some(Network::LitecoinTestnet),
         "vtc" => Some(Network::Vertcoin),
         "tvtc" => Some(Network::VertcoinTestnet),
-        "bcrt" => Some(Network::BitcoinCoreRegtest),
+        "bcrt" => Some(Network::Regtest),
         _ => None
     }
 }
