@@ -88,7 +88,7 @@ impl WitnessProgram {
         let mut b32_data: Vec<u5> = vec![version];
         let p5 = program.to_base32();
         b32_data.extend_from_slice(&p5);
-        let bech32 = Bech32::new(hrp.clone(), b32_data)?;
+        let bech32 = Bech32::new(hrp, b32_data)?;
 
         // Create return object
         let ret = WitnessProgram {
@@ -370,14 +370,14 @@ mod tests {
             assert!(dec_result.is_ok());
 
             let prog = dec_result.unwrap();
-            let pubkey = prog.clone().to_scriptpubkey();
+            let pubkey = prog.to_scriptpubkey();
             assert_eq!(pubkey, scriptpubkey);
 
             assert_eq!(prog.network(), network);
             assert_eq!(prog.version().to_u8(), version);
             assert_eq!(prog.program(), &scriptpubkey[2..]); // skip version and length
 
-            let spk_result = WitnessProgram::from_scriptpubkey(&scriptpubkey, prog.network.clone());
+            let spk_result = WitnessProgram::from_scriptpubkey(&scriptpubkey, prog.network);
             assert!(spk_result.is_ok());
             assert_eq!(prog, spk_result.unwrap());
 
