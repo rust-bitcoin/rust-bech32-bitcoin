@@ -29,8 +29,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use bitcoin_bech32::{WitnessProgram, u5};
-//! use bitcoin_bech32::constants::Network;
+//! use bitcoin_bech32::{WitnessProgram, u5, Network, BitcoinNetworks};
 //!
 //! let witness_program = WitnessProgram::new(
 //!     u5::try_from_u8(0).unwrap(),
@@ -39,14 +38,14 @@
 //!         0x21, 0xb2, 0xa1, 0x87, 0x90, 0x5e, 0x52, 0x66,
 //!         0x36, 0x2b, 0x99, 0xd5, 0xe9, 0x1c, 0x6c, 0xe2,
 //!         0x4d, 0x16, 0x5d, 0xab, 0x93, 0xe8, 0x64, 0x33],
-//!     Network::Testnet
+//!     Network::bitcoin_testnet()
 //! ).unwrap();
 //!
 //! let address = witness_program.to_address();
 //! assert_eq!(address,
 //!     "tb1qqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesrxh6hy".to_string());
 //!
-//! let decoded = WitnessProgram::from_address(&address).unwrap();
+//! let decoded = WitnessProgram::from_address::<BitcoinNetworks>(&address).unwrap();
 //! assert_eq!(decoded, witness_program);
 //! ```
 
@@ -57,15 +56,16 @@
 #![deny(unused_mut)]
 
 extern crate bech32;
+extern crate bitcoin_constants;
+
 use bech32::{Bech32, ToBase32, FromBase32};
 pub use bech32::u5;
+pub use bitcoin_constants::{BitcoinNetworks, Network, SupportedNetworks};
 
 use std::{error, fmt};
 use std::str::FromStr;
 use std::string::ToString;
 
-pub mod constants;
-use constants::Network;
 
 /// Witness version and program data
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Ord, Hash)]
@@ -84,11 +84,10 @@ impl WitnessProgram {
     /// Construct a new WitnessProgram given the constituent version, witness program and network version
     pub fn new(version: u5, program: Vec<u8>, network: Network) -> Result<WitnessProgram, Error> {
         // Compute bech32
-        let hrp = constants::hrp(&network);
         let mut b32_data: Vec<u5> = vec![version];
         let p5 = program.to_base32();
         b32_data.extend_from_slice(&p5);
-        let bech32 = Bech32::new(hrp, b32_data)?;
+        let bech32 = Bech32::new(network.hrp().to_owned(), b32_data)?;
 
         // Create return object
         let ret = WitnessProgram {
@@ -112,9 +111,31 @@ impl WitnessProgram {
     ///
     /// Verifies that the `address` contains a known human-readable part
     /// `hrp` and decodes as proper Bech32-encoded string. Allowed values of
-    /// the human-readable part correspond to the defined types in `constants`
-    pub fn from_address(address: &str) -> Result<WitnessProgram, Error> {
-        WitnessProgram::from_str(address)
+    /// the human-readable part correspond are defined by the `NetworkFinder` `F`.
+    /// If only the bitcoin networks (mainnet, testnet, regtest) are required
+    /// then `BitcoinNetworkFinder` can be used.
+    pub fn from_address<S: SupportedNetworks>(address: &str) -> Result<WitnessProgram, Error> {
+        let b32 = address.parse::<Bech32>()?;
+        let network_classified = S::networks_iter()
+            .find(|network| network.hrp() == b32.hrp())
+            .ok_or_else(|| Error::InvalidHumanReadablePart)?;
+        if b32.data().is_empty() || b32.data().len() > 65 {
+            return Err(Error::Bech32(bech32::Error::InvalidLength))
+        }
+        // Get the script version and program (converted from 5-bit to 8-bit)
+        let (version, program) = {
+            let (v, p5) = b32.data().split_at(1);
+            let program = Vec::from_base32(p5)?;
+            (v[0], program)
+        };
+        let wp = WitnessProgram {
+            version: version,
+            program: program,
+            network: network_classified,
+            bech32: b32,
+        };
+        wp.validate()?;
+        Ok(wp)
     }
 
     /// Converts a `WitnessProgram` to a script public key
@@ -185,8 +206,8 @@ impl WitnessProgram {
     }
 
     /// Which network this witness program is intended to be run on
-    pub fn network(&self) -> Network {
-        self.network
+    pub fn network(&self) -> &Network {
+        &self.network
     }
 }
 
@@ -200,28 +221,7 @@ impl FromStr for WitnessProgram {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<WitnessProgram, Error> {
-        let b32 = s.parse::<Bech32>()?;
-        let network_classified = match constants::classify(b32.hrp()) {
-            Some(nc) => nc,
-            None => return Err(Error::InvalidHumanReadablePart)
-        };
-        if b32.data().is_empty() || b32.data().len() > 65 {
-            return Err(Error::Bech32(bech32::Error::InvalidLength))
-        }
-        // Get the script version and program (converted from 5-bit to 8-bit)
-        let (version, program) = {
-            let (v, p5) = b32.data().split_at(1);
-            let program = Vec::from_base32(p5)?;
-            (v[0], program)
-        };
-        let wp = WitnessProgram {
-            version: version,
-            program: program,
-            network: network_classified,
-            bech32: b32,
-        };
-        wp.validate()?;
-        Ok(wp)
+        WitnessProgram::from_address::<BitcoinNetworks>(s)
     }
 }
 
@@ -295,7 +295,6 @@ impl error::Error for Error {
 #[cfg(test)]
 mod tests {
     use ::*;
-    use ::constants::Network;
     use bech32;
 
     #[test]
@@ -307,7 +306,7 @@ mod tests {
                     0x00, 0x14, 0x75, 0x1e, 0x76, 0xe8, 0x19, 0x91, 0x96, 0xd4, 0x54,
                     0x94, 0x1c, 0x45, 0xd1, 0xb3, 0xa3, 0x23, 0xf1, 0x43, 0x3b, 0xd6
                 ],
-                Network::Bitcoin,
+                Network::bitcoin(),
             ),
             (
                 "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7",
@@ -317,7 +316,7 @@ mod tests {
                     0xcd, 0x4d, 0x27, 0xa1, 0xb8, 0xc6, 0x32, 0x96, 0x04, 0x90, 0x32,
                     0x62
                 ],
-                Network::Testnet
+                Network::bitcoin_testnet()
             ),
             (
                 "bc1pw508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7k7grplx",
@@ -327,14 +326,14 @@ mod tests {
                     0x75, 0x1e, 0x76, 0xe8, 0x19, 0x91, 0x96, 0xd4, 0x54, 0x94, 0x1c,
                     0x45, 0xd1, 0xb3, 0xa3, 0x23, 0xf1, 0x43, 0x3b, 0xd6
                 ],
-                Network::Bitcoin,
+                Network::bitcoin(),
             ),
             (
                 "BC1SW50QA3JX3S",
                 vec![
                    0x60, 0x02, 0x75, 0x1e
                 ],
-                Network::Bitcoin,
+                Network::bitcoin(),
             ),
             (
                 "bc1zw508d6qejxtdg4y5r3zarvaryvg6kdaj",
@@ -342,7 +341,7 @@ mod tests {
                     0x52, 0x10, 0x75, 0x1e, 0x76, 0xe8, 0x19, 0x91, 0x96, 0xd4, 0x54,
                     0x94, 0x1c, 0x45, 0xd1, 0xb3, 0xa3, 0x23
                 ],
-                Network::Bitcoin,
+                Network::bitcoin(),
             ),
             (
                 "tb1qqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesrxh6hy",
@@ -352,7 +351,7 @@ mod tests {
                     0xe9, 0x1c, 0x6c, 0xe2, 0x4d, 0x16, 0x5d, 0xab, 0x93, 0xe8, 0x64,
                     0x33
                 ],
-                Network::Testnet,
+                Network::bitcoin_testnet(),
             ),
             (
                 "bcrt1qn3h68k2u0rr49skx05qw7veynpf4lfppd2demt",
@@ -360,24 +359,24 @@ mod tests {
                     0x00, 0x14, 0x9c, 0x6f, 0xa3, 0xd9, 0x5c, 0x78, 0xc7, 0x52, 0xc2,
                     0xc6, 0x7d, 0x00, 0xef, 0x33, 0x24, 0x98, 0x53, 0x5f, 0xa4, 0x21,
                 ],
-                Network::Regtest,
+                Network::bitcoin_regtest(),
             ),
         ];
         for p in pairs {
             let (address, scriptpubkey, network) = p;
             let version = if scriptpubkey[0] == 0 { 0 } else { scriptpubkey[0] - 0x50 };
-            let dec_result = WitnessProgram::from_address(&address);
+            let dec_result = WitnessProgram::from_address::<BitcoinNetworks>(&address);
             assert!(dec_result.is_ok());
 
             let prog = dec_result.unwrap();
             let pubkey = prog.to_scriptpubkey();
             assert_eq!(pubkey, scriptpubkey);
 
-            assert_eq!(prog.network(), network);
+            assert_eq!(prog.network(), &network);
             assert_eq!(prog.version().to_u8(), version);
             assert_eq!(prog.program(), &scriptpubkey[2..]); // skip version and length
 
-            let spk_result = WitnessProgram::from_scriptpubkey(&scriptpubkey, prog.network);
+            let spk_result = WitnessProgram::from_scriptpubkey(&scriptpubkey, prog.network.clone());
             assert!(spk_result.is_ok());
             assert_eq!(prog, spk_result.unwrap());
 
@@ -414,7 +413,7 @@ mod tests {
         );
         for p in pairs {
             let (address, desired_error) = p;
-            let dec_result = WitnessProgram::from_address(&address);
+            let dec_result = WitnessProgram::from_address::<BitcoinNetworks>(&address);
             if dec_result.is_ok() {
                 panic!("Should be invalid: {:?}", address);
             }

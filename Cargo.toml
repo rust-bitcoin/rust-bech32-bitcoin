@@ -11,3 +11,4 @@ license = "MIT"
 
 [dependencies]
 bech32 = "0.5.0"
+bitcoin-constants = { git = "https://github.com/sgeisler/bitcoin-constants.git", branch = "chain_params_impl" }
