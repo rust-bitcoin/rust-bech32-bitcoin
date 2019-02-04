@@ -1,12 +1,12 @@
-# Bitcoin Bech32
+# Syscoin Bech32
 
-Encodes and decodes Bitcoin Segregated Witness addresses in the Bech32 format described in [BIP-0173](https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki).
+Encodes and decodes Syscoin Segregated Witness addresses in the Bech32 format described in [BIP-0173](https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki).
 
 ## Example
 
 ```rust
-use bitcoin_bech32::{WitnessProgram, u5};
-use bitcoin_bech32::constants::Network;
+use syscoin_bech32::{WitnessProgram, u5};
+use syscoin_bech32::constants::Network;
 
 let witness_program = WitnessProgram::new(
     u5::try_from_u8(0).unwrap(),
@@ -20,7 +20,7 @@ let witness_program = WitnessProgram::new(
 
 let address = witness_program.to_address();
 assert_eq!(address,
-           "tb1qqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesrxh6hy".to_string());
+           "ts1qqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesrxh6hy".to_string());
 
 let decoded = WitnessProgram::from_address(&address).unwrap();
 assert_eq!(decoded, witness_program);
