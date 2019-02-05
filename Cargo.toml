@@ -1,8 +1,8 @@
 [package]
-name = "bitcoin-bech32"
+name = "syscoin-bech32"
 version = "0.8.2"
 authors = ["Jagdeep Sidhu"]
-repository = "https://github.com/syscoin/rust-bech32-bitcoin"
+repository = "https://github.com/syscoin/rust-bech32-syscoin"
 description = "Encodes and decodes Bitcoin/Syscoin Segregated Witness addresses in Bech32"
 readme = "README.md"
 keywords = ["bitcoin", "syscoin", "base32", "bech32", "encoding"]

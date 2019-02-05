@@ -29,8 +29,8 @@
 //! # Examples
 //!
 //! ```rust
-//! use bitcoin_bech32::{WitnessProgram, u5};
-//! use bitcoin_bech32::constants::Network;
+//! use syscoin_bech32::{WitnessProgram, u5};
+//! use syscoin_bech32::constants::Network;
 //!
 //! let witness_program = WitnessProgram::new(
 //!     u5::try_from_u8(0).unwrap(),
