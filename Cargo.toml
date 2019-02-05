@@ -1,6 +1,6 @@
 [package]
 name = "syscoin-bech32"
-version = "0.8.3"
+version = "0.8.4"
 authors = ["Jagdeep Sidhu"]
 repository = "https://github.com/syscoin/rust-bech32-syscoin"
 description = "Encodes and decodes Bitcoin/Syscoin Segregated Witness addresses in Bech32"
@@ -10,4 +10,4 @@ categories = ["encoding"]
 license = "MIT"
 
 [dependencies]
-bech32 = "0.5.0"
+bech32 = "0.6.0"
