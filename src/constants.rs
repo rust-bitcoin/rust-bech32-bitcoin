@@ -30,6 +30,8 @@ pub enum Network {
     Bitcoin,
     /// Bitcoin testnet
     Testnet,
+    /// Bitcoin signet,
+    Signet,
     /// Bitcoin regtest,
     Regtest,
     /// Litecoin mainnet
@@ -47,6 +49,7 @@ pub fn hrp(network: &Network) -> String {
     match *network {
         Network::Bitcoin => "bc".to_string(),
         Network::Testnet => "tb".to_string(),
+        Network::Signet => "sb".to_string(),
         Network::Litecoin => "ltc".to_string(),
         Network::LitecoinTestnet => "tltc".to_string(),
         Network::Vertcoin => "vtc".to_string(),
@@ -60,6 +63,7 @@ pub fn classify(hrp: &str) -> Option<Network> {
     match hrp {
         "bc" => Some(Network::Bitcoin),
         "tb" => Some(Network::Testnet),
+        "sb" => Some(Network::Signet),
         "ltc" => Some(Network::Litecoin),
         "tltc" => Some(Network::LitecoinTestnet),
         "vtc" => Some(Network::Vertcoin),
