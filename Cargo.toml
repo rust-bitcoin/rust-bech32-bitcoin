@@ -1,6 +1,6 @@
 [package]
 name = "bitcoin-bech32"
-version = "0.9.0"
+version = "0.10.0"
 authors = ["Clark Moody"]
 repository = "https://github.com/rust-bitcoin/rust-bech32-bitcoin"
 description = "Encodes and decodes Bitcoin Segregated Witness addresses in Bech32"
