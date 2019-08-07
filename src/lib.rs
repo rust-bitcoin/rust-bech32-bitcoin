@@ -57,8 +57,8 @@
 #![deny(unused_mut)]
 
 extern crate bech32;
-use bech32::{Bech32, ToBase32, FromBase32};
 pub use bech32::u5;
+use bech32::{decode, encode, FromBase32, ToBase32};
 
 use std::{error, fmt};
 use std::str::FromStr;
@@ -77,7 +77,7 @@ pub struct WitnessProgram {
     /// Cryptocurrency network
     network: Network,
     /// Cached bech32 representation of the witness program
-    bech32: Bech32,
+    bech32: String,
 }
 
 impl WitnessProgram {
@@ -88,14 +88,14 @@ impl WitnessProgram {
         let mut b32_data: Vec<u5> = vec![version];
         let p5 = program.to_base32();
         b32_data.extend_from_slice(&p5);
-        let bech32 = Bech32::new(hrp, b32_data)?;
+        let bech32 = encode(&hrp, b32_data)?;
 
         // Create return object
         let ret = WitnessProgram {
-            version: version,
-            program: program,
-            network: network,
-            bech32: bech32,
+            version,
+            program,
+            network,
+            bech32,
         };
 
         // Verify that the program is valid
@@ -200,25 +200,25 @@ impl FromStr for WitnessProgram {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<WitnessProgram, Error> {
-        let b32 = s.parse::<Bech32>()?;
-        let network_classified = match constants::classify(b32.hrp()) {
+        let (hrp, data) = decode(s)?;
+        let network_classified = match constants::classify(&hrp) {
             Some(nc) => nc,
             None => return Err(Error::InvalidHumanReadablePart)
         };
-        if b32.data().is_empty() || b32.data().len() > 65 {
+        if data.is_empty() || data.len() > 65 {
             return Err(Error::Bech32(bech32::Error::InvalidLength))
         }
         // Get the script version and program (converted from 5-bit to 8-bit)
         let (version, program) = {
-            let (v, p5) = b32.data().split_at(1);
+            let (v, p5) = data.split_at(1);
             let program = Vec::from_base32(p5)?;
             (v[0], program)
         };
         let wp = WitnessProgram {
-            version: version,
-            program: program,
+            version,
+            program,
             network: network_classified,
-            bech32: b32,
+            bech32: s.to_string(),
         };
         wp.validate()?;
         Ok(wp)
@@ -379,7 +379,10 @@ mod tests {
 
             let spk_result = WitnessProgram::from_scriptpubkey(&scriptpubkey, prog.network);
             assert!(spk_result.is_ok());
-            assert_eq!(prog, spk_result.unwrap());
+            assert_eq!(
+                prog.to_string().to_lowercase(),
+                spk_result.unwrap().to_string().to_lowercase()
+            );
 
             let enc_address = prog.to_address();
             assert_eq!(address.to_lowercase(), enc_address.to_lowercase());
