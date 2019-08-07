@@ -19,7 +19,7 @@
 // THE SOFTWARE.
 
 //! Human-readable constants for various cryptocurrencies
-//! 
+//!
 //! The authoratative list of Human-readable parts for Bech32 addresses is
 //! maintained in [SLIP-0173](https://github.com/satoshilabs/slips/blob/master/slip-0173.md).
 
@@ -69,6 +69,6 @@ pub fn classify(hrp: &str) -> Option<Network> {
         "vtc" => Some(Network::Vertcoin),
         "tvtc" => Some(Network::VertcoinTestnet),
         "bcrt" => Some(Network::Regtest),
-        _ => None
+        _ => None,
     }
 }

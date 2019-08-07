@@ -60,9 +60,9 @@ extern crate bech32;
 pub use bech32::u5;
 use bech32::{decode, encode, FromBase32, ToBase32};
 
-use std::{error, fmt};
 use std::str::FromStr;
 use std::string::ToString;
+use std::{error, fmt};
 
 pub mod constants;
 use constants::Network;
@@ -138,12 +138,12 @@ impl WitnessProgram {
         // We need a version byte and a program length byte, with a program at
         // least 2 bytes long.
         if pubkey.len() < 4 {
-            return Err(Error::ScriptPubkeyTooShort)
+            return Err(Error::ScriptPubkeyTooShort);
         }
         let proglen: usize = pubkey[1] as usize;
         // Check that program length byte is consistent with pubkey length
         if pubkey.len() != 2 + proglen {
-            return Err(Error::ScriptPubkeyInvalidLength)
+            return Err(Error::ScriptPubkeyInvalidLength);
         }
         // Process script version
         let mut v: u8 = pubkey[0];
@@ -161,15 +161,14 @@ impl WitnessProgram {
     pub fn validate(&self) -> Result<(), Error> {
         if self.version.to_u8() > 16 {
             // Invalid script version
-            return Err(Error::InvalidScriptVersion)
+            return Err(Error::InvalidScriptVersion);
         }
         if self.program.len() < 2 || self.program.len() > 40 {
-            return Err(Error::InvalidLength)
+            return Err(Error::InvalidLength);
         }
         // Check proper script length
-        if self.version.to_u8() == 0 &&
-                self.program.len() != 20 && self.program.len() != 32 {
-            return Err(Error::InvalidVersionLength)
+        if self.version.to_u8() == 0 && self.program.len() != 20 && self.program.len() != 32 {
+            return Err(Error::InvalidVersionLength);
         }
         Ok(())
     }
@@ -203,10 +202,10 @@ impl FromStr for WitnessProgram {
         let (hrp, data) = decode(s)?;
         let network_classified = match constants::classify(&hrp) {
             Some(nc) => nc,
-            None => return Err(Error::InvalidHumanReadablePart)
+            None => return Err(Error::InvalidHumanReadablePart),
         };
         if data.is_empty() || data.len() > 65 {
-            return Err(Error::Bech32(bech32::Error::InvalidLength))
+            return Err(Error::Bech32(bech32::Error::InvalidLength));
         }
         // Get the script version and program (converted from 5-bit to 8-bit)
         let (version, program) = {
@@ -280,7 +279,7 @@ impl error::Error for Error {
             Error::ScriptPubkeyInvalidLength => "scriptpubkey length mismatch",
             Error::InvalidLength => "invalid length",
             Error::InvalidVersionLength => "program length incompatible with version",
-            Error::InvalidScriptVersion => "invalid script version"
+            Error::InvalidScriptVersion => "invalid script version",
         }
     }
 
@@ -294,9 +293,9 @@ impl error::Error for Error {
 
 #[cfg(test)]
 mod tests {
-    use ::*;
-    use ::constants::Network;
     use bech32;
+    use constants::Network;
+    use *;
 
     #[test]
     fn valid_address() {
@@ -304,68 +303,68 @@ mod tests {
             (
                 "BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4",
                 vec![
-                    0x00, 0x14, 0x75, 0x1e, 0x76, 0xe8, 0x19, 0x91, 0x96, 0xd4, 0x54,
-                    0x94, 0x1c, 0x45, 0xd1, 0xb3, 0xa3, 0x23, 0xf1, 0x43, 0x3b, 0xd6
+                    0x00, 0x14, 0x75, 0x1e, 0x76, 0xe8, 0x19, 0x91, 0x96, 0xd4, 0x54, 0x94, 0x1c,
+                    0x45, 0xd1, 0xb3, 0xa3, 0x23, 0xf1, 0x43, 0x3b, 0xd6,
                 ],
                 Network::Bitcoin,
             ),
             (
                 "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7",
                 vec![
-                    0x00, 0x20, 0x18, 0x63, 0x14, 0x3c, 0x14, 0xc5, 0x16, 0x68, 0x04,
-                    0xbd, 0x19, 0x20, 0x33, 0x56, 0xda, 0x13, 0x6c, 0x98, 0x56, 0x78,
-                    0xcd, 0x4d, 0x27, 0xa1, 0xb8, 0xc6, 0x32, 0x96, 0x04, 0x90, 0x32,
-                    0x62
+                    0x00, 0x20, 0x18, 0x63, 0x14, 0x3c, 0x14, 0xc5, 0x16, 0x68, 0x04, 0xbd, 0x19,
+                    0x20, 0x33, 0x56, 0xda, 0x13, 0x6c, 0x98, 0x56, 0x78, 0xcd, 0x4d, 0x27, 0xa1,
+                    0xb8, 0xc6, 0x32, 0x96, 0x04, 0x90, 0x32, 0x62,
                 ],
-                Network::Testnet
+                Network::Testnet,
             ),
             (
                 "bc1pw508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7k7grplx",
                 vec![
-                    0x51, 0x28, 0x75, 0x1e, 0x76, 0xe8, 0x19, 0x91, 0x96, 0xd4, 0x54,
-                    0x94, 0x1c, 0x45, 0xd1, 0xb3, 0xa3, 0x23, 0xf1, 0x43, 0x3b, 0xd6,
-                    0x75, 0x1e, 0x76, 0xe8, 0x19, 0x91, 0x96, 0xd4, 0x54, 0x94, 0x1c,
-                    0x45, 0xd1, 0xb3, 0xa3, 0x23, 0xf1, 0x43, 0x3b, 0xd6
+                    0x51, 0x28, 0x75, 0x1e, 0x76, 0xe8, 0x19, 0x91, 0x96, 0xd4, 0x54, 0x94, 0x1c,
+                    0x45, 0xd1, 0xb3, 0xa3, 0x23, 0xf1, 0x43, 0x3b, 0xd6, 0x75, 0x1e, 0x76, 0xe8,
+                    0x19, 0x91, 0x96, 0xd4, 0x54, 0x94, 0x1c, 0x45, 0xd1, 0xb3, 0xa3, 0x23, 0xf1,
+                    0x43, 0x3b, 0xd6,
                 ],
                 Network::Bitcoin,
             ),
             (
                 "BC1SW50QA3JX3S",
-                vec![
-                   0x60, 0x02, 0x75, 0x1e
-                ],
+                vec![0x60, 0x02, 0x75, 0x1e],
                 Network::Bitcoin,
             ),
             (
                 "bc1zw508d6qejxtdg4y5r3zarvaryvg6kdaj",
                 vec![
-                    0x52, 0x10, 0x75, 0x1e, 0x76, 0xe8, 0x19, 0x91, 0x96, 0xd4, 0x54,
-                    0x94, 0x1c, 0x45, 0xd1, 0xb3, 0xa3, 0x23
+                    0x52, 0x10, 0x75, 0x1e, 0x76, 0xe8, 0x19, 0x91, 0x96, 0xd4, 0x54, 0x94, 0x1c,
+                    0x45, 0xd1, 0xb3, 0xa3, 0x23,
                 ],
                 Network::Bitcoin,
             ),
             (
                 "tb1qqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesrxh6hy",
                 vec![
-                    0x00, 0x20, 0x00, 0x00, 0x00, 0xc4, 0xa5, 0xca, 0xd4, 0x62, 0x21,
-                    0xb2, 0xa1, 0x87, 0x90, 0x5e, 0x52, 0x66, 0x36, 0x2b, 0x99, 0xd5,
-                    0xe9, 0x1c, 0x6c, 0xe2, 0x4d, 0x16, 0x5d, 0xab, 0x93, 0xe8, 0x64,
-                    0x33
+                    0x00, 0x20, 0x00, 0x00, 0x00, 0xc4, 0xa5, 0xca, 0xd4, 0x62, 0x21, 0xb2, 0xa1,
+                    0x87, 0x90, 0x5e, 0x52, 0x66, 0x36, 0x2b, 0x99, 0xd5, 0xe9, 0x1c, 0x6c, 0xe2,
+                    0x4d, 0x16, 0x5d, 0xab, 0x93, 0xe8, 0x64, 0x33,
                 ],
                 Network::Testnet,
             ),
             (
                 "bcrt1qn3h68k2u0rr49skx05qw7veynpf4lfppd2demt",
                 vec![
-                    0x00, 0x14, 0x9c, 0x6f, 0xa3, 0xd9, 0x5c, 0x78, 0xc7, 0x52, 0xc2,
-                    0xc6, 0x7d, 0x00, 0xef, 0x33, 0x24, 0x98, 0x53, 0x5f, 0xa4, 0x21,
+                    0x00, 0x14, 0x9c, 0x6f, 0xa3, 0xd9, 0x5c, 0x78, 0xc7, 0x52, 0xc2, 0xc6, 0x7d,
+                    0x00, 0xef, 0x33, 0x24, 0x98, 0x53, 0x5f, 0xa4, 0x21,
                 ],
                 Network::Regtest,
             ),
         ];
         for p in pairs {
             let (address, scriptpubkey, network) = p;
-            let version = if scriptpubkey[0] == 0 { 0 } else { scriptpubkey[0] - 0x50 };
+            let version = if scriptpubkey[0] == 0 {
+                0
+            } else {
+                scriptpubkey[0] - 0x50
+            };
             let dec_result = WitnessProgram::from_address(&address);
             assert!(dec_result.is_ok());
 
@@ -391,30 +390,46 @@ mod tests {
 
     #[test]
     fn invalid_address() {
-        let pairs: Vec<(&str, Error)> = vec!(
-            ("tc1qw508d6qejxtdg4y5r3zarvary0c5xw7kg3g4ty",
-                Error::InvalidHumanReadablePart),
-            ("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5",
-                Error::Bech32(bech32::Error::InvalidChecksum)),
-            ("BC13W508D6QEJXTDG4Y5R3ZARVARY0C5XW7KN40WF2",
-                Error::InvalidScriptVersion),
-            ("bc1rw5uspcuh",
-                Error::InvalidLength),
-            ("bc10w508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7kw5rljs90",
-                Error::Bech32(bech32::Error::InvalidLength)),
-            ("BC1QR508D6QEJXTDG4Y5R3ZARVARYV98GJ9P",
-                Error::InvalidVersionLength),
-            ("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sL5k7",
-                Error::Bech32(bech32::Error::MixedCase)),
-            ("tb1pw508d6qejxtdg4y5r3zarqfsj6c3",
-                Error::Bech32(bech32::Error::InvalidPadding)),
-            ("bc1zw508d6qejxtdg4y5r3zarvaryvqyzf3du",
-                Error::Bech32(bech32::Error::InvalidPadding)),
-            ("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3pjxtptv",
-                Error::Bech32(bech32::Error::InvalidPadding)),
-            ("bc1gmk9yu",
-                Error::Bech32(bech32::Error::InvalidLength)),
-        );
+        let pairs: Vec<(&str, Error)> = vec![
+            (
+                "tc1qw508d6qejxtdg4y5r3zarvary0c5xw7kg3g4ty",
+                Error::InvalidHumanReadablePart,
+            ),
+            (
+                "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5",
+                Error::Bech32(bech32::Error::InvalidChecksum),
+            ),
+            (
+                "BC13W508D6QEJXTDG4Y5R3ZARVARY0C5XW7KN40WF2",
+                Error::InvalidScriptVersion,
+            ),
+            ("bc1rw5uspcuh", Error::InvalidLength),
+            (
+                "bc10w508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7kw5rljs90",
+                Error::Bech32(bech32::Error::InvalidLength),
+            ),
+            (
+                "BC1QR508D6QEJXTDG4Y5R3ZARVARYV98GJ9P",
+                Error::InvalidVersionLength,
+            ),
+            (
+                "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sL5k7",
+                Error::Bech32(bech32::Error::MixedCase),
+            ),
+            (
+                "tb1pw508d6qejxtdg4y5r3zarqfsj6c3",
+                Error::Bech32(bech32::Error::InvalidPadding),
+            ),
+            (
+                "bc1zw508d6qejxtdg4y5r3zarvaryvqyzf3du",
+                Error::Bech32(bech32::Error::InvalidPadding),
+            ),
+            (
+                "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3pjxtptv",
+                Error::Bech32(bech32::Error::InvalidPadding),
+            ),
+            ("bc1gmk9yu", Error::Bech32(bech32::Error::InvalidLength)),
+        ];
         for p in pairs {
             let (address, desired_error) = p;
             let dec_result = WitnessProgram::from_address(&address);
