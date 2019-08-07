@@ -9,5 +9,9 @@ keywords = ["bitcoin", "base32", "bech32", "encoding"]
 categories = ["encoding"]
 license = "MIT"
 
+[features]
+# Only for CI to make all warnings errors, do not activate otherwise (may break forward compatibility)
+strict = []
+
 [dependencies]
 bech32 = "0.7.1"

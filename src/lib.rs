@@ -50,11 +50,16 @@
 //! assert_eq!(decoded, witness_program);
 //! ```
 
+// Allow trait objects without dyn on nightly and make 1.22 ignore the unknown lint
+#![allow(unknown_lints)]
+#![allow(bare_trait_objects)]
+
 #![deny(missing_docs)]
 #![deny(non_upper_case_globals)]
 #![deny(non_camel_case_types)]
 #![deny(non_snake_case)]
 #![deny(unused_mut)]
+#![cfg_attr(feature = "strict", deny(warnings))]
 
 extern crate bech32;
 pub use bech32::u5;
