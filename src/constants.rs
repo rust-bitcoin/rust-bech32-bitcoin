@@ -42,6 +42,10 @@ pub enum Network {
     Litecoin,
     /// Litecoin testnet
     LitecoinTestnet,
+    /// Monacoin Mainnet
+    Monacoin,
+    /// Monacoin Testnet,
+    MonacoinTestnet,
     /// Vertcoin mainnet
     Vertcoin,
     /// Vertcoin testnet
@@ -58,6 +62,8 @@ pub fn hrp(network: &Network) -> String {
         Network::GroestlcoinTestnet => "tgrs".to_string(),
         Network::Litecoin => "ltc".to_string(),
         Network::LitecoinTestnet => "tltc".to_string(),
+        Network::Monacoin => "mona".to_string(),
+        Network::MonacoinTestnet => "tmona".to_string(),
         Network::Vertcoin => "vtc".to_string(),
         Network::VertcoinTestnet => "tvtc".to_string(),
         Network::Regtest => "bcrt".to_string(),
@@ -74,6 +80,8 @@ pub fn classify(hrp: &str) -> Option<Network> {
         "tgrs" => Some(Network::GroestlcoinTestnet),
         "ltc" => Some(Network::Litecoin),
         "tltc" => Some(Network::LitecoinTestnet),
+        "mona" => Some(Network::Monacoin),
+        "tmona" => Some(Network::MonacoinTestnet),
         "vtc" => Some(Network::Vertcoin),
         "tvtc" => Some(Network::VertcoinTestnet),
         "bcrt" => Some(Network::Regtest),
