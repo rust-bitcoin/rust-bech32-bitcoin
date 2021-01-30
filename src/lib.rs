@@ -248,7 +248,7 @@ fn program_version_to_variant(version: u5) -> Option<Variant> {
 ///
 /// BIP141 specifies Segregated Witness and defines valid program lengths
 /// for Version 0 scripts. Script version is also limited to values 0-16.
-#[derive(PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Error {
     /// Some Bech32 conversion error
     Bech32(bech32::Error),
