@@ -1,4 +1,6 @@
 # Bitcoin Bech32
+[![Docs.rs badge](https://docs.rs/bitcoin-bech32/badge.svg)](https://docs.rs/bitcoin-bech32/)
+[![Continuous Integration](https://github.com/rust-bitcoin/rust-bech32-bitcoin/workflows/Continuous%20Integration/badge.svg)](https://github.com/rust-bitcoin/rust-bech32-bitcoin/actions?query=workflow%3A%22Continuous+Integration%22)
 
 Encodes and decodes Bitcoin Segregated Witness addresses in the Bech32 format described in [BIP-0173](https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki).
 
