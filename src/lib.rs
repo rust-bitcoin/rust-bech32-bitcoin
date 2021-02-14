@@ -92,8 +92,7 @@ impl WitnessProgram {
         let mut b32_data: Vec<u5> = vec![version];
         let p5 = program.to_base32();
         b32_data.extend_from_slice(&p5);
-        let variant =
-            program_version_to_variant(version).ok_or_else(|| Error::InvalidScriptVersion)?;
+        let variant = program_version_to_variant(version).ok_or(Error::InvalidScriptVersion)?;
         let bech32 = encode(&hrp, b32_data, variant)?;
 
         // Create return object
