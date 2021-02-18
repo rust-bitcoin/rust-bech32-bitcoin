@@ -218,11 +218,6 @@ impl FromStr for WitnessProgram {
             let program = Vec::from_base32(p5)?;
             (v[0], program)
         };
-        if (version.to_u8() == 0 && variant != Variant::Bech32)
-            || (version.to_u8() != 0 && variant != Variant::Bech32m)
-        {
-            return Err(Error::InvalidEncoding);
-        }
         let wp = WitnessProgram {
             version,
             program,
@@ -230,6 +225,11 @@ impl FromStr for WitnessProgram {
             bech32: s.to_string(),
         };
         wp.validate()?;
+        if let Some(version_variant) = program_version_to_variant(version) {
+            if version_variant != variant {
+                return Err(Error::InvalidEncoding);
+            }
+        }
         Ok(wp)
     }
 }
@@ -450,9 +450,9 @@ mod tests {
             ),
             (
                 "BC13W508D6QEJXTDG4Y5R3ZARVARY0C5XW7KN40WF2",
-                Error::InvalidEncoding,
+                Error::InvalidScriptVersion,
             ),
-            ("bc1rw5uspcuh", Error::InvalidEncoding),
+            ("bc1rw5uspcuh", Error::InvalidLength),
             (
                 "bc10w508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7kw5rljs90",
                 Error::Bech32(bech32::Error::InvalidLength),
