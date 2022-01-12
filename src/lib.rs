@@ -189,8 +189,8 @@ impl WitnessProgram {
     }
 
     /// Which network this witness program is intended to be run on
-    pub fn network(&self) -> Network {
-        self.network
+    pub fn network(&self) -> &Network {
+        &self.network
     }
 }
 
@@ -418,7 +418,7 @@ mod tests {
             let pubkey = prog.to_scriptpubkey();
             assert_eq!(pubkey, scriptpubkey);
 
-            assert_eq!(prog.network(), network);
+            assert_eq!(prog.network(), &network);
             assert_eq!(prog.version().to_u8(), version);
             assert_eq!(prog.program(), &scriptpubkey[2..]); // skip version and length
 

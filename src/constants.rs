@@ -49,18 +49,18 @@ pub enum Network {
 }
 
 /// Returns the Human-readable part for the given network
-pub fn hrp(network: &Network) -> String {
-    match *network {
-        Network::Bitcoin => "bc".to_string(),
-        Network::Testnet => "tb".to_string(),
-        Network::Signet => "tb".to_string(),
-        Network::Groestlcoin => "grs".to_string(),
-        Network::GroestlcoinTestnet => "tgrs".to_string(),
-        Network::Litecoin => "ltc".to_string(),
-        Network::LitecoinTestnet => "tltc".to_string(),
-        Network::Vertcoin => "vtc".to_string(),
-        Network::VertcoinTestnet => "tvtc".to_string(),
-        Network::Regtest => "bcrt".to_string(),
+pub fn hrp(network: &Network) -> &'static str {
+    match network {
+        Network::Bitcoin => "bc",
+        Network::Testnet => "tb",
+        Network::Signet => "tb",
+        Network::Groestlcoin => "grs",
+        Network::GroestlcoinTestnet => "tgrs",
+        Network::Litecoin => "ltc",
+        Network::LitecoinTestnet => "tltc",
+        Network::Vertcoin => "vtc",
+        Network::VertcoinTestnet => "tvtc",
+        Network::Regtest => "bcrt",
     }
 }
 
