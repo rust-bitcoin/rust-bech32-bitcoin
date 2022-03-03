@@ -59,14 +59,21 @@
 #![deny(non_snake_case)]
 #![deny(unused_mut)]
 #![cfg_attr(feature = "strict", deny(warnings))]
+#![cfg_attr(not(feature = "std"), no_std)]
 
+extern crate alloc;
 extern crate bech32;
 pub use bech32::u5;
 use bech32::{decode, encode, FromBase32, ToBase32, Variant};
 
-use std::str::FromStr;
-use std::string::ToString;
+use alloc::vec;
+use alloc::vec::Vec;
+use alloc::str::FromStr;
+use alloc::string::{String, ToString};
+#[cfg(feature = "std")]
 use std::{error, fmt};
+#[cfg(not(feature = "std"))]
+use core::fmt;
 
 pub mod constants;
 use constants::Network;
@@ -296,6 +303,7 @@ impl fmt::Display for Error {
     }
 }
 
+#[cfg(feature = "std")]
 impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {

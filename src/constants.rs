@@ -23,6 +23,8 @@
 //! The authoratative list of Human-readable parts for Bech32 addresses is
 //! maintained in [SLIP-0173](https://github.com/satoshilabs/slips/blob/master/slip-0173.md).
 
+use alloc::string::{String, ToString};
+
 /// The cryptocurrency to act on
 #[derive(PartialEq, Eq, Debug, Clone, Copy, PartialOrd, Ord, Hash)]
 pub enum Network {
