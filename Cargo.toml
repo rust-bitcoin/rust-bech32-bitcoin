@@ -10,8 +10,10 @@ categories = ["encoding"]
 license = "MIT"
 
 [features]
+default = ["std"]
 # Only for CI to make all warnings errors, do not activate otherwise (may break forward compatibility)
 strict = []
+std = []
 
 [dependencies]
 bech32 = "0.8.0"

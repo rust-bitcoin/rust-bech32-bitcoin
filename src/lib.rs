@@ -59,14 +59,32 @@
 #![deny(non_snake_case)]
 #![deny(unused_mut)]
 #![cfg_attr(feature = "strict", deny(warnings))]
+#![cfg_attr(not(feature = "std"), no_std)]
+
+#[cfg_attr(not(feature = "std"), macro_use)]
+#[cfg(not(feature = "std"))]
+extern crate alloc;
+
+#[cfg(not(feature = "std"))]
+pub(crate) mod imports {
+    pub use alloc::string::String;
+    pub use alloc::string::ToString;
+    pub use alloc::vec::Vec;
+    pub use core::fmt;
+    pub use core::str::FromStr;
+}
+#[cfg(feature = "std")]
+pub(crate) mod imports {
+    pub use std::str::FromStr;
+    pub use std::string::ToString;
+    pub use std::{error, fmt};
+}
+
+use imports::*;
 
 extern crate bech32;
 pub use bech32::u5;
 use bech32::{decode, encode, FromBase32, ToBase32, Variant};
-
-use std::str::FromStr;
-use std::string::ToString;
-use std::{error, fmt};
 
 pub mod constants;
 use constants::Network;
@@ -296,6 +314,7 @@ impl fmt::Display for Error {
     }
 }
 
+#[cfg(feature = "std")]
 impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
