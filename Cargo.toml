@@ -13,7 +13,7 @@ license = "MIT"
 default = ["std"]
 # Only for CI to make all warnings errors, do not activate otherwise (may break forward compatibility)
 strict = []
-std = []
+std = ["bech32/std"]
 
 [dependencies]
-bech32 = "0.8.0"
+bech32 = { version = "0.8.0", default-features = false }
